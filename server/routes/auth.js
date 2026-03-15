@@ -4,28 +4,13 @@ import { JWT_SECRET } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Admin credentials (hardcoded)
+// Admin credentials
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'getolog2026';
 
 // POST /api/auth/login
 router.post('/login', (req, res) => {
   try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Username va password kiritilishi shart',
-      });
-    }
-
-    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-      return res.status(401).json({
-        success: false,
-        error: 'Login yoki parol noto\'g\'ri',
-      });
-    }
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 
     // Generate JWT token (expires in 24 hours)
     const token = jwt.sign(
