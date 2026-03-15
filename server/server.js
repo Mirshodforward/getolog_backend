@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from './config/database.js';
 import { devBypass } from './middleware/auth.js';
 
@@ -16,10 +18,15 @@ import transactionsRoutes from './routes/transactions.js';
 import exportRoutes from './routes/export.js';
 import spendingsRoutes from './routes/spendings.js';
 
-dotenv.config();
+// Get __dirname for ES6 modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from parent directory
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 
 // ====== MIDDLEWARE ======
 
@@ -146,7 +153,7 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log(`🚀 Getolog Admin API Server`);
   console.log(`🌐 Server running on: http://localhost:${PORT}`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV }`);
   console.log(`📊 Database: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}`);
   console.log('='.repeat(60));
   console.log('');
