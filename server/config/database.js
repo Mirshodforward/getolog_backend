@@ -1,21 +1,41 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const { Pool } = pg;
 
+// Extract database connection params from DATABASE_URL if available, otherwise use individual env vars
+let poolConfig = {};
+
+if (process.env.DATABASE_URL) {
+  // Replace postgresql+asyncpg:// with postgresql:// for Node.js pg
+  const connString = process.env.DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://');
+  poolConfig = {
+    connectionString: connString,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+} else {
+  poolConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER || 'postgres',
+    password: String(process.env.DB_PASSWORD), // Ensure password is a string
+    database: process.env.DB_NAME || 'getelog_db',
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+}
+
 // PostgreSQL connection pool
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+const pool = new Pool(poolConfig);
 
 // Test connection
 pool.on('connect', () => {
