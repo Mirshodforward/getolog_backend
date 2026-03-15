@@ -1010,7 +1010,7 @@ async def cancel_broadcast(callback: CallbackQuery, state: FSMContext):
 @router.message(BroadcastStates.entering_message, F.photo)
 async def receive_broadcast_photo(message: Message, state: FSMContext):
     """Rasm + caption qabul qilish"""
-    if message.from_user.id != settings.ADMIN_ID:
+    if message.from_user.id not in settings.ADMIN_ID:
         return
 
     photo = message.photo[-1]  # Eng katta o'lchamdagi rasm
@@ -1062,7 +1062,7 @@ async def receive_broadcast_photo(message: Message, state: FSMContext):
 @router.message(BroadcastStates.entering_message, F.text)
 async def receive_broadcast_text(message: Message, state: FSMContext):
     """Matn xabarni qabul qilish"""
-    if message.from_user.id != settings.ADMIN_ID:
+    if message.from_user.id not in settings.ADMIN_ID:
         return
 
     await state.update_data(
@@ -1109,7 +1109,7 @@ async def receive_broadcast_text(message: Message, state: FSMContext):
 @router.callback_query(BroadcastStates.confirming_broadcast, F.data == "broadcast_confirm")
 async def confirm_and_send_broadcast(callback: CallbackQuery, state: FSMContext):
     """Broadcastni tasdiqlash va yuborish"""
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
