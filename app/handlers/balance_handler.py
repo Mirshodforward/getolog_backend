@@ -198,7 +198,7 @@ async def process_screenshot(message: Message, state: FSMContext, bot: Bot) -> N
     # Send to admin
     try:
         await bot.send_photo(
-            chat_id=settings.ADMIN_ID,
+            chat_id=settings.ADMIN_ID[0],
             photo=photo.file_id,
             caption=(
                 f"💳 <b>Yangi to'lov so'rovi</b>\n\n"
@@ -240,7 +240,7 @@ async def waiting_screenshot_invalid(message: Message, state: FSMContext) -> Non
 async def admin_confirm_payment(callback: CallbackQuery, bot: Bot) -> None:
     """Admin confirms payment"""
     # Check if admin
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Sizda ruxsat yo'q!", show_alert=True)
         return
 
@@ -299,7 +299,7 @@ async def admin_confirm_payment(callback: CallbackQuery, bot: Bot) -> None:
 async def admin_reject_payment(callback: CallbackQuery, bot: Bot) -> None:
     """Admin rejects payment"""
     # Check if admin
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Sizda ruxsat yo'q!", show_alert=True)
         return
 

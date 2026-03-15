@@ -37,7 +37,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     first_name = message.from_user.first_name
 
     # Check if user is ADMIN/MANAGER
-    if user_id == settings.ADMIN_ID:
+    if user_id in settings.ADMIN_ID:
         # MANAGER ADMIN PANEL
         async with AsyncSessionLocal() as session:
             try:
@@ -191,11 +191,65 @@ async def cmd_lang(message: Message) -> None:
     await message.answer(lang_msgs.get(lang, lang_msgs["uz"]), reply_markup=keyboard)
 
 
+@router.message(Command("plan"))
+async def cmd_plan(message: Message) -> None:
+    """Plan change/view command"""
+    from app.config import PLAN_CONFIG
+    
+    user_id = message.from_user.id
+
+    # Get client
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+
+    if not client:
+        await message.answer("❌ Avval /start bosing.")
+        return
+
+    lang = client.language or "uz"
+    current_plan = client.plan_type or "free"
+
+    # Plan selection keyboard
+    plans_info = {
+        "free": {
+            "uz": "🆓 Free (Bepul, 1 bot)",
+            "ru": "🆓 Free (Бесплатно, 1 бот)",
+            "en": "🆓 Free (Free, 1 bot)"
+        },
+        "standard": {
+            "uz": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} so'm, 2 bot)",
+            "ru": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} сум, 2 бота)",
+            "en": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} UZS, 2 bots)"
+        },
+        "biznes": {
+            "uz": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} so'm, 5 bot)",
+            "ru": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} сум, 5 ботов)",
+            "en": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} UZS, 5 bots)"
+        }
+    }
+    
+    keyboard_buttons = [
+        [InlineKeyboardButton(text=plans_info["free"][lang], callback_data="plan_free")],
+        [InlineKeyboardButton(text=plans_info["standard"][lang], callback_data="plan_standard")],
+        [InlineKeyboardButton(text=plans_info["biznes"][lang], callback_data="plan_biznes")]
+    ]
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    msgs = {
+        "uz": f"💰 <b>Sizning tarifingiz:</b> <b>{current_plan.upper()}</b>\n\n<b>Tarifni o'zgartirish:</b>",
+        "ru": f"💰 <b>Ваш тариф:</b> <b>{current_plan.upper()}</b>\n\n<b>Изменить тариф:</b>",
+        "en": f"💰 <b>Your plan:</b> <b>{current_plan.upper()}</b>\n\n<b>Change plan:</b>"
+    }
+    
+    await message.answer(msgs.get(lang, msgs["uz"]), reply_markup=keyboard, parse_mode="HTML")
+
+
 # ==================== MANAGER ADMIN PANEL HANDLERS ====================
 
 @router.callback_query(F.data == "mgr_clients")
 async def show_clients_list(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -206,7 +260,8 @@ async def show_clients_list(callback: CallbackQuery):
             # Get statistics
             total_clients = (await session.execute(text("SELECT COUNT(*) FROM clients"))).scalar() or 0
             free_clients = (await session.execute(text("SELECT COUNT(*) FROM clients WHERE plan_type IS NULL OR plan_type = 'free'"))).scalar() or 0
-            premium_clients = (await session.execute(text("SELECT COUNT(*) FROM clients WHERE plan_type = 'premium'"))).scalar() or 0
+            standard_clients = (await session.execute(text("SELECT COUNT(*) FROM clients WHERE plan_type = 'standard'"))).scalar() or 0
+            biznes_clients = (await session.execute(text("SELECT COUNT(*) FROM clients WHERE plan_type = 'biznes'"))).scalar() or 0
 
             # Create Excel
             wb = Workbook()
@@ -271,7 +326,8 @@ async def show_clients_list(callback: CallbackQuery):
                 caption=f"👥 <b>Clientlar ro'yxati</b>\n\n"
                         f"📊 Jami: <b>{total_clients}</b> ta\n"
                         f"🆓 Free: <b>{free_clients}</b> ta\n"
-                        f"💎 Premium: <b>{premium_clients}</b> ta",
+                        f"� Standard: <b>{standard_clients}</b> ta\n"
+                        f"🎯 Biznes: <b>{biznes_clients}</b> ta",
                 parse_mode="HTML",
                 reply_markup=back_kb
             )
@@ -282,7 +338,7 @@ async def show_clients_list(callback: CallbackQuery):
 
 @router.callback_query(F.data == "mgr_bots")
 async def show_bots_list(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -370,7 +426,7 @@ async def show_bots_list(callback: CallbackQuery):
 
 @router.callback_query(F.data == "mgr_users")
 async def show_users_list(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -465,7 +521,7 @@ async def show_users_list(callback: CallbackQuery):
 
 @router.callback_query(F.data == "mgr_transactions")
 async def show_transactions_list(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -612,7 +668,7 @@ async def show_transactions_list(callback: CallbackQuery):
 
 @router.callback_query(F.data == "mgr_search")
 async def start_client_search(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -627,7 +683,7 @@ async def start_client_search(callback: CallbackQuery, state: FSMContext):
 
 @router.message(ManagerStates.waiting_for_client_search)
 async def process_client_search(message: Message, state: FSMContext):
-    if message.from_user.id != settings.ADMIN_ID:
+    if message.from_user.id not in settings.ADMIN_ID:
         return
 
     search_term = message.text.strip()
@@ -696,7 +752,7 @@ async def process_client_search(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("add_balance_"))
 async def add_balance_start(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -714,7 +770,7 @@ async def add_balance_start(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("sub_balance_"))
 async def sub_balance_start(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -732,7 +788,7 @@ async def sub_balance_start(callback: CallbackQuery, state: FSMContext):
 
 @router.message(ManagerStates.waiting_for_balance_amount)
 async def process_balance_change(message: Message, state: FSMContext):
-    if message.from_user.id != settings.ADMIN_ID:
+    if message.from_user.id not in settings.ADMIN_ID:
         return
 
     try:
@@ -773,7 +829,7 @@ async def process_balance_change(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("show_client_bots_"))
 async def show_client_bots(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -813,7 +869,7 @@ async def show_client_bots(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("show_client_users_"))
 async def show_client_users(callback: CallbackQuery):
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -863,7 +919,7 @@ async def show_client_users(callback: CallbackQuery):
 @router.callback_query(F.data == "mgr_broadcast")
 async def start_broadcast(callback: CallbackQuery, state: FSMContext):
     """Broadcast xabar yuborishni boshlash"""
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -895,7 +951,7 @@ async def start_broadcast(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.in_({"broadcast_clients", "broadcast_users", "broadcast_all"}))
 async def select_broadcast_audience(callback: CallbackQuery, state: FSMContext):
     """Auditoriya tanlash"""
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 
@@ -928,7 +984,7 @@ async def select_broadcast_audience(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "broadcast_cancel")
 async def cancel_broadcast(callback: CallbackQuery, state: FSMContext):
     """Broadcastni bekor qilish"""
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Ruxsat yo'q", show_alert=True)
         return
 

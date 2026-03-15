@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 @router.callback_query(F.data.startswith("set_lang_"))
 async def set_language_callback(callback: CallbackQuery) -> None:
     """Handle language selection"""
+    from app.config import PLAN_CONFIG
+    
     user_id = callback.from_user.id
     first_name = callback.from_user.first_name
     lang = callback.data.split("_")[-1]  # uz, ru, or en
@@ -30,30 +32,183 @@ async def set_language_callback(callback: CallbackQuery) -> None:
     # Update client language in database
     async with AsyncSessionLocal() as session:
         await update_client_language(session, user_id, lang)
+        client = await get_client_by_user_id(session, user_id)
 
-    # Show confirmation and main menu
-    lang_names = {"uz": "O'zbekcha", "ru": "Русский", "en": "English"}
+    # Check if client is new (no plan_type selected yet)
+    if client and not client.plan_type:
+        # New client - show plan selection
+        lang_names = {"uz": "O'zbekcha", "ru": "Русский", "en": "English"}
+        
+        plans_info = {
+            "free": {
+                "uz": "🆓 Free (Bepul, 1 bot)",
+                "ru": "🆓 Free (Бесплатно, 1 бот)",
+                "en": "🆓 Free (Free, 1 bot)"
+            },
+            "standard": {
+                "uz": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} so'm, 2 bot)",
+                "ru": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} сум, 2 бота)",
+                "en": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} UZS, 2 bots)"
+            },
+            "biznes": {
+                "uz": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} so'm, 5 bot)",
+                "ru": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} сум, 5 ботов)",
+                "en": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} UZS, 5 bots)"
+            }
+        }
+        
+        keyboard_buttons = [
+            [
+                InlineKeyboardButton(text=plans_info["free"][lang], callback_data="plan_free"),
+                InlineKeyboardButton(text=plans_info["standard"][lang], callback_data="plan_standard")
+            ],
+            [
+                InlineKeyboardButton(text=plans_info["biznes"][lang], callback_data="plan_biznes")
+            ]
+        ]
+        
+        msg_parts = {
+            "uz": f"✅ {lang_names.get(lang, lang)}\n\n💰 <b>Tarifni tanlang:</b>\n\n🆓 <b>Free</b> - Bepul, 1 ta bot\n📘 <b>Standard</b> - 97.000 so'm/oy, 2 ta bot\n🎯 <b>Biznes</b> - 497.000 so'm/oy, 5 ta bot",
+            "ru": f"✅ {lang_names.get(lang, lang)}\n\n💰 <b>Выберите тариф:</b>\n\n🆓 <b>Free</b> - Бесплатно, 1 бот\n📘 <b>Standard</b> - 97.000 сум/мес, 2 бота\n🎯 <b>Biznes</b> - 497.000 сум/мес, 5 ботов",
+            "en": f"✅ {lang_names.get(lang, lang)}\n\n💰 <b>Select a plan:</b>\n\n🆓 <b>Free</b> - Free, 1 bot\n📘 <b>Standard</b> - 97.000 UZS/month, 2 bots\n🎯 <b>Biznes</b> - 497.000 UZS/month, 5 bots"
+        }
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await callback.message.edit_text(
+            msg_parts.get(lang, msg_parts["uz"]),
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    else:
+        # Existing client - show main menu
+        lang_names = {"uz": "O'zbekcha", "ru": "Русский", "en": "English"}
 
-    # Create inline keyboard with translations
+        # Create inline keyboard with translations
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
+            [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+        ])
+
+        await callback.message.edit_text(
+            f"✅ {lang_names.get(lang, lang)}\n\n"
+            f"👋 {_('welcome', lang, name=first_name)}",
+            reply_markup=keyboard
+        )
+    
+    await callback.answer()
+
+
+# ==================== INITIAL PLAN SELECTION (after language) ====================
+
+@router.callback_query(F.data == "plan_free")
+async def select_initial_plan_free(callback: CallbackQuery) -> None:
+    """Select free plan (initial selection or from bot creation)"""
+    user_id = callback.from_user.id
+    first_name = callback.from_user.first_name
+    
+    # Update client plan in database
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if client:
+            client.plan_type = "free"
+            await session.commit()
+            lang = client.language or "uz"
+    
+    # Show main menu
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
         [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
     ])
-
+    
+    msg_plan = {
+        "uz": "✅ <b>Free</b> tarifini tanladingiz!\n\n👋 Xush kelibsiz!",
+        "ru": "✅ Вы выбрали тариф <b>Free</b>!\n\n👋 Добро пожаловать!",
+        "en": "✅ You selected <b>Free</b> plan!\n\n👋 Welcome!"
+    }
+    
     await callback.message.edit_text(
-        f"✅ {lang_names.get(lang, lang)}\n\n"
-        f"👋 {_('welcome', lang, name=first_name)}",
-        reply_markup=keyboard
+        msg_plan.get(lang, msg_plan["uz"]),
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "plan_standard")
+async def select_initial_plan_standard(callback: CallbackQuery) -> None:
+    """Select standard plan (initial selection or from bot creation)"""
+    user_id = callback.from_user.id
+    first_name = callback.from_user.first_name
+    
+    # Update client plan in database
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if client:
+            client.plan_type = "standard"
+            await session.commit()
+            lang = client.language or "uz"
+    
+    # Show main menu
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
+        [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+    ])
+    
+    msg_plan = {
+        "uz": "✅ <b>Standard</b> tarifini tanladingiz!\n\n👋 Xush kelibsiz!",
+        "ru": "✅ Вы выбрали тариф <b>Standard</b>!\n\n👋 Добро пожаловать!",
+        "en": "✅ You selected <b>Standard</b> plan!\n\n👋 Welcome!"
+    }
+    
+    await callback.message.edit_text(
+        msg_plan.get(lang, msg_plan["uz"]),
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "plan_biznes")
+async def select_initial_plan_biznes(callback: CallbackQuery) -> None:
+    """Select biznes plan (initial selection or from bot creation)"""
+    user_id = callback.from_user.id
+    first_name = callback.from_user.first_name
+    
+    # Update client plan in database
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if client:
+            client.plan_type = "biznes"
+            await session.commit()
+            lang = client.language or "uz"
+    
+    # Show main menu
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
+        [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+    ])
+    
+    msg_plan = {
+        "uz": "✅ <b>Biznes</b> tarifini tanladingiz!\n\n👋 Xush kelibsiz!",
+        "ru": "✅ Вы выбрали тариф <b>Biznes</b>!\n\n👋 Добро пожаловать!",
+        "en": "✅ You selected <b>Biznes</b> plan!\n\n👋 Welcome!"
+    }
+    
+    await callback.message.edit_text(
+        msg_plan.get(lang, msg_plan["uz"]),
+        reply_markup=keyboard,
+        parse_mode="HTML"
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "create_bot")
 async def create_bot_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    """Create bot button callback - show pricing plans or skip for premium clients"""
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+    """Create bot button callback - skip plan if already selected"""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+    from app.config import PLAN_CONFIG
 
-    price = settings.PREMIUM_PRICE
     user_id = callback.from_user.id
 
     # Check user balance and get language
@@ -62,20 +217,25 @@ async def create_bot_callback(callback: CallbackQuery, state: FSMContext) -> Non
 
     current_balance = float(client.balance) if client and client.balance else 0
     lang = client.language if client else "uz"
+    current_plan = client.plan_type if client else None
 
     # Save language in state for later use
-    await state.update_data(lang=lang)
+    await state.update_data(lang=lang, plan=current_plan or "free")
 
-    # If client is already premium - skip plan selection, auto-continue as premium
-    if client and client.plan_type == "premium":
-        await state.update_data(plan="premium", already_premium=True)
-
-        premium_msg = {
-            "uz": "⭐ Siz <b>Premium</b> foydalanuvchisiz!\n\nYangi botingiz ham premium bo'ladi.",
-            "ru": "⭐ Вы <b>Премиум</b> пользователь!\n\nВаш новый бот тоже будет премиум.",
-            "en": "⭐ You are a <b>Premium</b> user!\n\nYour new bot will also be premium."
+    # If client already has a plan selected, go directly to contact request
+    if current_plan:
+        plan_names = {
+            "free": {"uz": "Free", "ru": "Free", "en": "Free"},
+            "standard": {"uz": "Standard", "ru": "Standard", "en": "Standard"},
+            "biznes": {"uz": "Biznes", "ru": "Biznes", "en": "Biznes"}
         }
-
+        
+        msgs = {
+            "uz": f"🤖 <b>Bot yaratish</b>\n\nSizning tarifingiz: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Iltimos, kontaktingizni ulashish tugmasini bosing:",
+            "ru": f"🤖 <b>Создание бота</b>\n\nВаш тариф: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Пожалуйста, нажмите кнопку для отправки контакта:",
+            "en": f"🤖 <b>Create Bot</b>\n\nYour plan: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Please press the button to share your contact:"
+        }
+        
         btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
         msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
 
@@ -87,33 +247,63 @@ async def create_bot_callback(callback: CallbackQuery, state: FSMContext) -> Non
             one_time_keyboard=True
         )
 
-        await callback.message.edit_text(premium_msg.get(lang, premium_msg["uz"]), parse_mode="HTML")
+        await callback.message.edit_text(msgs.get(lang, msgs["uz"]), parse_mode="HTML")
         await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
         await state.set_state(BotCreationStates.entering_phone)
         await callback.answer()
         return
 
-    # Not premium - show plan selection as usual
-    # Create pricing keyboard with translations
-    free_text = {"uz": "🆓 Free (Reklamali)", "ru": "🆓 Free (С рекламой)", "en": "🆓 Free (With ads)"}
-    premium_text = {"uz": f"⭐ Premium ({price:,} so'm)", "ru": f"⭐ Премиум ({price:,} сум)", "en": f"⭐ Premium ({price:,} UZS)"}
-    topup_text = {"uz": "💳 Hisobni to'ldirish", "ru": "💳 Пополнить счёт", "en": "💳 Top up balance"}
-
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=free_text.get(lang, free_text["uz"]), callback_data="plan_free"),
-        InlineKeyboardButton(text=premium_text.get(lang, premium_text["uz"]), callback_data="plan_premium")],
-        [InlineKeyboardButton(text=topup_text.get(lang, topup_text["uz"]), callback_data="topup_balance")],
+    # No plan selected - show plan selection
+    keyboard_buttons = []
+    
+    # Current plan indicator
+    current_indicator = {
+        "uz": "✅ Sizning tarifingiz",
+        "ru": "✅ Ваш текущий тариф",
+        "en": "✅ Your current plan"
+    }
+    
+    plans_info = {
+        "free": {
+            "uz": "🆓 Free (Bepul, 1 bot)",
+            "ru": "🆓 Free (Бесплатно, 1 бот)",
+            "en": "🆓 Free (Free, 1 bot)"
+        },
+        "standard": {
+            "uz": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} so'm, 2 bot)",
+            "ru": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} сум, 2 бота)",
+            "en": f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} UZS, 2 bots)"
+        },
+        "biznes": {
+            "uz": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} so'm, 5 bot)",
+            "ru": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} сум, 5 ботов)",
+            "en": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} UZS, 5 bots)"
+        }
+    }
+    
+    # Add plan buttons
+    keyboard_buttons.append([
+        InlineKeyboardButton(text=plans_info["free"][lang], callback_data="plan_free"),
+        InlineKeyboardButton(text=plans_info["standard"][lang], callback_data="plan_standard")
     ])
+    keyboard_buttons.append([
+        InlineKeyboardButton(text=plans_info["biznes"][lang], callback_data="plan_biznes")
+    ])
+    
+    # Add topup button
+    topup_text = {"uz": "💳 Hisobni to'ldirish", "ru": "💳 Пополнить счёт", "en": "💳 Top up balance"}
+    keyboard_buttons.append([InlineKeyboardButton(text=topup_text.get(lang, topup_text["uz"]), callback_data="topup_balance")])
 
-    # Messages in different languages
-    msg = {
-        "uz": f"💰 Tarifni tanlang:\n\nSizning balansingiz: <b>{current_balance:,.0f} so'm</b>\n\n🆓 <b>Free</b> - Bepul, lekin reklamasi bor\n⭐ <b>Premium</b> - {price:,} so'm/oy\n",
-        "ru": f"💰 Выберите тариф:\n\nВаш баланс: <b>{current_balance:,.0f} сум</b>\n\n🆓 <b>Free</b> - Бесплатно, но с рекламой\n⭐ <b>Премиум</b> - {price:,} сум/мес\n",
-        "en": f"💰 Select a plan:\n\nYour balance: <b>{current_balance:,.0f} UZS</b>\n\n🆓 <b>Free</b> - Free, but with ads\n⭐ <b>Premium</b> - {price:,} UZS/month\n"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    msg_parts = {
+        "uz": f"💰 <b>Tarifni tanlang</b>\n\nSizning balansingiz: <b>{current_balance:,.0f} so'm</b>\n\n🆓 <b>Free</b> - Bepul, 1 ta bot\n📘 <b>Standard</b> - 97.000 so'm/oy, 2 ta bot\n🎯 <b>Biznes</b> - 497.000 so'm/oy, 5 ta bot",
+        "ru": f"💰 <b>Выберите тариф</b>\n\nВаш баланс: <b>{current_balance:,.0f} сум</b>\n\n🆓 <b>Free</b> - Бесплатно, 1 бот\n📘 <b>Standard</b> - 97.000 сум/мес, 2 бота\n🎯 <b>Biznes</b> - 497.000 сум/мес, 5 ботов",
+        "en": f"💰 <b>Select a plan</b>\n\nYour balance: <b>{current_balance:,.0f} UZS</b>\n\n🆓 <b>Free</b> - Free, 1 bot\n📘 <b>Standard</b> - 97.000 UZS/month, 2 bots\n🎯 <b>Biznes</b> - 497.000 UZS/month, 5 bots"
     }
 
     await callback.message.edit_text(
-        msg.get(lang, msg["uz"]),
+        msg_parts.get(lang, msg_parts["uz"]),
         reply_markup=keyboard,
         parse_mode="HTML"
     )
@@ -191,6 +381,130 @@ async def select_premium_plan(callback: CallbackQuery, state: FSMContext) -> Non
 
     # If balance is enough - continue directly
     await state.update_data(plan="premium")
+
+    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
+    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
+    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
+    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
+    await state.set_state(BotCreationStates.entering_phone)
+    await callback.answer()
+
+
+@router.callback_query(BotCreationStates.selecting_plan, F.data == "plan_standard")
+async def select_standard_plan(callback: CallbackQuery, state: FSMContext) -> None:
+    """Select standard plan - check balance first"""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+    from app.config import PLAN_CONFIG
+
+    user_id = callback.from_user.id
+    plan_price = PLAN_CONFIG["standard"]["price"]
+
+    data = await state.get_data()
+    lang = data.get("lang", "uz")
+
+    # Check user balance
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+
+    current_balance = float(client.balance) if client and client.balance else 0
+
+    # If balance is not enough
+    if current_balance < plan_price:
+        needed = plan_price - current_balance
+
+        topup_text = {"uz": "💳 Hisobni to'ldirish", "ru": "💳 Пополнить счёт", "en": "💳 Top up balance"}
+        back_text = {"uz": "🔙 Orqaga", "ru": "🔙 Назад", "en": "🔙 Back"}
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=topup_text.get(lang, topup_text["uz"]), callback_data="topup_balance")],
+            [InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="create_bot")],
+        ])
+
+        msg = {
+            "uz": f"⚠️ <b>Hisobingizda yetarli mablag' yo'q!</b>\n\nBalansingiz: <b>{current_balance:,.0f} so'm</b>\nKerakli: <b>{plan_price:,} so'm</b>\n\nIltimos hisobingizni <b>{needed:,.0f} so'mga</b> to'ldiring.\n",
+            "ru": f"⚠️ <b>Недостаточно средств!</b>\n\nВаш баланс: <b>{current_balance:,.0f} сум</b>\nНужно: <b>{plan_price:,} сум</b>\n\nПополните счёт на <b>{needed:,.0f} сум</b>.\n",
+            "en": f"⚠️ <b>Insufficient balance!</b>\n\nYour balance: <b>{current_balance:,.0f} UZS</b>\nRequired: <b>{plan_price:,} UZS</b>\n\nPlease top up <b>{needed:,.0f} UZS</b>.\n"
+        }
+
+        await callback.message.edit_text(msg.get(lang, msg["uz"]), reply_markup=keyboard, parse_mode="HTML")
+        await state.clear()
+        await callback.answer()
+        return
+
+    # If balance is enough - continue directly
+    await state.update_data(plan="standard")
+
+    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
+    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
+    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
+    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
+    await state.set_state(BotCreationStates.entering_phone)
+    await callback.answer()
+
+
+@router.callback_query(BotCreationStates.selecting_plan, F.data == "plan_biznes")
+async def select_biznes_plan(callback: CallbackQuery, state: FSMContext) -> None:
+    """Select biznes plan - check balance first"""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+    from app.config import PLAN_CONFIG
+
+    user_id = callback.from_user.id
+    plan_price = PLAN_CONFIG["biznes"]["price"]
+
+    data = await state.get_data()
+    lang = data.get("lang", "uz")
+
+    # Check user balance
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+
+    current_balance = float(client.balance) if client and client.balance else 0
+
+    # If balance is not enough
+    if current_balance < plan_price:
+        needed = plan_price - current_balance
+
+        topup_text = {"uz": "💳 Hisobni to'ldirish", "ru": "💳 Пополнить счёт", "en": "💳 Top up balance"}
+        back_text = {"uz": "🔙 Orqaga", "ru": "🔙 Назад", "en": "🔙 Back"}
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=topup_text.get(lang, topup_text["uz"]), callback_data="topup_balance")],
+            [InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="create_bot")],
+        ])
+
+        msg = {
+            "uz": f"⚠️ <b>Hisobingizda yetarli mablag' yo'q!</b>\n\nBalansingiz: <b>{current_balance:,.0f} so'm</b>\nKerakli: <b>{plan_price:,} so'm</b>\n\nIltimos hisobingizni <b>{needed:,.0f} so'mga</b> to'ldiring.\n",
+            "ru": f"⚠️ <b>Недостаточно средств!</b>\n\nВаш баланс: <b>{current_balance:,.0f} сум</b>\nНужно: <b>{plan_price:,} сум</b>\n\nПополните счёт на <b>{needed:,.0f} сум</b>.\n",
+            "en": f"⚠️ <b>Insufficient balance!</b>\n\nYour balance: <b>{current_balance:,.0f} UZS</b>\nRequired: <b>{plan_price:,} UZS</b>\n\nPlease top up <b>{needed:,.0f} UZS</b>.\n"
+        }
+
+        await callback.message.edit_text(msg.get(lang, msg["uz"]), reply_markup=keyboard, parse_mode="HTML")
+        await state.clear()
+        await callback.answer()
+        return
+
+    # If balance is enough - continue directly
+    await state.update_data(plan="biznes")
 
     btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
     msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
@@ -1060,7 +1374,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
 
     try:
         await bot_instance.send_message(
-            chat_id=settings.ADMIN_ID,
+            chat_id=settings.ADMIN_ID[0],
             text=manager_msg,
             reply_markup=manager_keyboard,
             parse_mode="HTML"
@@ -1202,7 +1516,7 @@ async def manager_approve_bot(callback: CallbackQuery) -> None:
     logger = logging.getLogger(__name__)
 
     # Check if user is admin
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
         return
 
@@ -1234,21 +1548,9 @@ async def manager_stop_bot(callback: CallbackQuery) -> None:
     logger = logging.getLogger(__name__)
 
     # Check if user is admin
-    if callback.from_user.id != settings.ADMIN_ID:
+    if callback.from_user.id not in settings.ADMIN_ID:
         await callback.answer("❌ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
         return
-
-    bot_id = int(callback.data.split("_")[-1])
-
-    async with AsyncSessionLocal() as session:
-        bot = await get_bot_by_id(session, bot_id)
-        if not bot:
-            await callback.message.edit_text(
-                callback.message.text + f"\n\n⚠️ Bot topilmadi",
-                parse_mode="HTML"
-            )
-            await callback.answer("⚠️ Bot topilmadi!")
-            return
 
         bot_name = bot.bot_name
 
