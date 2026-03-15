@@ -98,6 +98,10 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
             [
                 InlineKeyboardButton(text="📢 Xabar yuborish", callback_data="mgr_broadcast")
             ]
+            ,
+             [
+                InlineKeyboardButton(text="Mini app ochish", url="https://mirshodqahramonov.uz/")
+            ]
         ])
 
         await message.answer(manager_msg, parse_mode="HTML", reply_markup=manager_keyboard)
