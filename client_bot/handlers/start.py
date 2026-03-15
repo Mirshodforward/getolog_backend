@@ -245,52 +245,23 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
             # Get bot info
             bot_info = await get_bot_info(session, bot_token)
 
-            # Get statistics (per-bot)
-            total_query = text("SELECT COUNT(*) FROM users WHERE admin_id = :admin_id AND bot_id = :bot_id")
-            total_result = await session.execute(total_query, {"admin_id": owner_id, "bot_id": bot_db_id})
-            total_users = total_result.scalar() or 0
-
-            active_query = text("SELECT COUNT(*) FROM users WHERE admin_id = :admin_id AND bot_id = :bot_id AND status = 'active'")
-            active_result = await session.execute(active_query, {"admin_id": owner_id, "bot_id": bot_db_id})
-            active_users = active_result.scalar() or 0
-
-            removed_query = text("SELECT COUNT(*) FROM users WHERE admin_id = :admin_id AND bot_id = :bot_id AND status = 'removed'")
-            removed_result = await session.execute(removed_query, {"admin_id": owner_id, "bot_id": bot_db_id})
-            removed_users = removed_result.scalar() or 0
-
-            revenue_query = text("""
-                SELECT COALESCE(SUM(amount), 0) FROM transactions
-                WHERE admin_id = :admin_id AND role = 'plan_purchase' AND status = 'approved'
-            """)
-            revenue_result = await session.execute(revenue_query, {"admin_id": owner_id})
-            total_revenue = float(revenue_result.scalar() or 0)
-
         except Exception as e:
             logger.error(f"Stats error: {e}")
-            total_users = 0
-            active_users = 0
-            removed_users = 0
-            total_revenue = 0
             bot_info = None
             lang = "uz"
 
-    # Build admin panel with translations
-    currency = get_admin_text("currency", lang)
-
-    admin_msg = f"{get_admin_text('admin_panel_title', lang)}\n\n"
+    # Build admin panel
+    admin_msg = f"<b>👨‍💼 MENEJER ADMIN PANEL</b>\n\n"
 
     if bot_info:
-        admin_msg += f"{get_admin_text('bot_label', lang)} {bot_info.get('bot_name', 'N/A')}\n"
-        admin_msg += f"{get_admin_text('channel_id_label', lang)} {bot_info.get('channel_id', 'N/A')}\n\n"
+        admin_msg += f"🤖 Bot: {bot_info.get('bot_name', 'N/A')}\n"
+        admin_msg += f"📢 Kanal: {bot_info.get('channel_id', 'N/A')}\n\n"
 
-    admin_msg += f"{get_admin_text('short_stats', lang)}\n"
-    admin_msg += f"  {get_admin_text('total_users_label', lang)}: {total_users}\n"
-    admin_msg += f"  {get_admin_text('active_label', lang)}: {active_users}\n"
-    admin_msg += f"  {get_admin_text('removed_label', lang)}: {removed_users}\n"
-    admin_msg += f"  {get_admin_text('revenue_label', lang)}: {total_revenue:,.0f} {currency}\n"
+    admin_msg += f"<i>Barcha statistika va boshqarish uchun Web paneldan foydalaning →</i>"
 
-    # Admin keyboard with translations
+    # Admin keyboard with web panel button only
     admin_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🌐 Web Admin Panel", url="https://mirshodqahramonov.uz")],
         [InlineKeyboardButton(text=get_admin_text("btn_stats", lang), callback_data="admin_stats")],
         [
             InlineKeyboardButton(text=get_admin_text("btn_users_excel", lang), callback_data="admin_users_excel"),
