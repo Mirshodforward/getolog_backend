@@ -96,7 +96,11 @@ async def set_language_callback(callback: CallbackQuery) -> None:
 
         def format_dt(dt):
             if not dt: return "N/A"
-            return dt.strftime('%d.%m.%Y %H:%M')
+            if dt.tzinfo is None:
+                import datetime
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            from app.config import TASHKENT_TZ
+            return dt.astimezone(TASHKENT_TZ).strftime('%d.%m.%Y %H:%M')
 
         start_date_str = format_dt(client.plan_start_date) if client else "N/A"
         end_date_str = format_dt(client.plan_end_date) if client else "N/A"
@@ -532,7 +536,11 @@ async def my_bots_callback(callback: CallbackQuery) -> None:
 
     def format_dt(dt):
         if not dt: return "N/A"
-        return dt.strftime('%d.%m.%Y %H:%M')
+        if dt.tzinfo is None:
+            import datetime
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        from app.config import TASHKENT_TZ
+        return dt.astimezone(TASHKENT_TZ).strftime('%d.%m.%Y %H:%M')
 
     start_str = format_dt(client.plan_start_date) if client else "N/A"
     end_str = format_dt(client.plan_end_date) if client else "N/A"
@@ -1238,8 +1246,16 @@ async def back_to_main_callback(callback: CallbackQuery) -> None:
         lang = client.language if client else "uz"
 
         if client:
-            start_date_str = client.plan_start_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_start_date', None) else "---"
-            end_date_str = client.plan_end_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_end_date', None) else "---"
+            def format_welcome_dt(dt):
+                if not dt: return "---"
+                if dt.tzinfo is None:
+                    import datetime
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                from app.config import TASHKENT_TZ
+                return dt.astimezone(TASHKENT_TZ).strftime('%Y-%m-%d %H:%M')
+
+            start_date_str = format_welcome_dt(getattr(client, 'plan_start_date', None))
+            end_date_str = format_welcome_dt(getattr(client, 'plan_end_date', None))
             balance_fmt = f"{client.balance or 0:,.0f}".replace(",", " ")
             plan_str = getattr(client, 'plan_type', 'Free') or "Free"
         else:

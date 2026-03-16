@@ -135,8 +135,15 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
         # Existing client - show main menu in their language
         lang = client.language or "uz"
 
-        start_date_str = client.plan_start_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_start_date', None) else "---"
-        end_date_str = client.plan_end_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_end_date', None) else "---"
+        def format_dt(dt):
+            if not dt: return "---"
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            from app.config import TASHKENT_TZ
+            return dt.astimezone(TASHKENT_TZ).strftime('%Y-%m-%d %H:%M')
+
+        start_date_str = format_dt(getattr(client, 'plan_start_date', None))
+        end_date_str = format_dt(getattr(client, 'plan_end_date', None))
         balance_fmt = f"{client.balance or 0:,.0f}".replace(",", " ")
         plan_str = getattr(client, 'plan_type', 'Free') or "Free"
 
