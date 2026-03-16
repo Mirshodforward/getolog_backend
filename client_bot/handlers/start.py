@@ -8,12 +8,12 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy import text
 from app.database import AsyncSessionLocal
 from client_bot.config import logger, REKLAMA_TEXT
-from client_bot.utils.database import get_or_create_user, get_bot_info, get_client_plan
+from client_bot.utils.database import get_or_create_user, get_bot_info, get_client_plan_and_ads
 from locales import get_text as get_admin_text
 from client_bot.states import LanguageStates
 
 
-def register_start_handlers(dp, bot, owner_id: int, bot_name: str, bot_token: str, bot_db_id: int):
+def register_start_handlers(dp, bot, owner_id: int, bot_username: str, bot_token: str, bot_db_id: int):
     """Register /start command handler"""
 
     @dp.message(Command("start"))
@@ -61,7 +61,7 @@ def register_start_handlers(dp, bot, owner_id: int, bot_name: str, bot_token: st
                 logger.error(f"Database error: {db_error}")
 
         # Show welcome with their language
-        await show_welcome_message(message, owner_id, bot_name, current_lang, bot_token)
+        await show_welcome_message(message, owner_id, bot_username, current_lang, bot_token)
 
     @dp.callback_query(F.data.startswith("lang_"))
     async def select_language(callback, state: FSMContext):
@@ -100,7 +100,7 @@ def register_start_handlers(dp, bot, owner_id: int, bot_name: str, bot_token: st
         await callback.answer(get_admin_text("language_selected", lang))
 
         # Edit message to show welcome
-        await show_welcome_message(callback.message, owner_id, bot_name, lang, bot_token)
+        await show_welcome_message(callback.message, owner_id, bot_username, lang, bot_token)
 
 
 async def show_language_selection(message: Message, state: FSMContext):
@@ -127,17 +127,18 @@ async def show_language_selection(message: Message, state: FSMContext):
     await message.answer(greeting_text, parse_mode="HTML", reply_markup=keyboard)
 
 
-async def show_welcome_message(message: Message, owner_id: int, bot_name: str, lang: str, bot_token: str):
+async def show_welcome_message(message: Message, owner_id: int, bot_username: str, lang: str, bot_token: str):
     """Show welcome message in selected language"""
     # Get bot info and user plan
     bot_info = None
     client_plan = 'free'
+    ads_enabled = True
 
     async with AsyncSessionLocal() as session:
         try:
             bot_info = await get_bot_info(session, bot_token)
-            client_plan = await get_client_plan(session, owner_id)
-            logger.info(f"Client plan: {client_plan}")
+            client_plan, ads_enabled = await get_client_plan_and_ads(session, owner_id)
+            logger.info(f"Client plan: {client_plan}, Ads Enabled: {ads_enabled}")
         except Exception as db_error:
             logger.error(f"Database error: {db_error}")
 
@@ -145,7 +146,7 @@ async def show_welcome_message(message: Message, owner_id: int, bot_name: str, l
     welcome_texts = {
         "uz": {
             "greeting": f"Assalomu alaykum, {message.from_user.first_name or 'User'}!",
-            "welcome": f"<b>{bot_name}</b> botiga xush kelibsiz!",
+            "welcome": f"<b>{bot_username}</b> botiga xush kelibsiz!",
             "select_duration": "<b>Telegram kanalga a'zo bo'lish uchun muddatni tanlang:</b>",
             "test": "Test - 2 daqiqa (Bepul)",
             "monthly": "Oylik",
@@ -155,7 +156,7 @@ async def show_welcome_message(message: Message, owner_id: int, bot_name: str, l
         },
         "ru": {
             "greeting": f"Привет, {message.from_user.first_name or 'User'}!",
-            "welcome": f"Добро пожаловать в бот <b>{bot_name}</b>!",
+            "welcome": f"Добро пожаловать в бот <b>{bot_username}</b>!",
             "select_duration": "<b>Выберите продолжительность подписки на канал:</b>",
             "test": "Тест - 2 минуты (Бесплатно)",
             "monthly": "Месячная",
@@ -165,7 +166,7 @@ async def show_welcome_message(message: Message, owner_id: int, bot_name: str, l
         },
         "en": {
             "greeting": f"Hello, {message.from_user.first_name or 'User'}!",
-            "welcome": f"Welcome to <b>{bot_name}</b> bot!",
+            "welcome": f"Welcome to <b>{bot_username}</b> bot!",
             "select_duration": "<b>Select subscription duration for the channel:</b>",
             "test": "Test - 2 minutes (Free)",
             "monthly": "Monthly",
@@ -224,8 +225,8 @@ async def show_welcome_message(message: Message, owner_id: int, bot_name: str, l
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
-    # Add REKLAMA_TEXT for FREE clients only
-    if client_plan != 'premium':
+    # Add REKLAMA_TEXT if required by plan or user toggle
+    if client_plan == 'free' or ads_enabled:
         welcome_msg += f"\n\n<i>{REKLAMA_TEXT}</i>"
 
     # Send welcome message
@@ -280,7 +281,7 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
     admin_msg = f"{get_admin_text('admin_panel_title', lang)}\n\n"
 
     if bot_info:
-        admin_msg += f"{get_admin_text('bot_label', lang)} {bot_info.get('bot_name', 'N/A')}\n"
+        admin_msg += f"{get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
         admin_msg += f"{get_admin_text('channel_id_label', lang)} {bot_info.get('channel_id', 'N/A')}\n\n"
 
     admin_msg += f"{get_admin_text('short_stats', lang)}\n"

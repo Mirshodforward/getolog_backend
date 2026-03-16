@@ -127,7 +127,7 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
                 stats_msg = f"📊 {get_admin_text('stats_title', lang)}\n\n"
 
                 if bot_info:
-                    stats_msg += f"🤖 {get_admin_text('bot_label', lang)} {bot_info.get('bot_name', 'N/A')}\n"
+                    stats_msg += f"🤖 {get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
                     stats_msg += f"📢 {get_admin_text('channel_label', lang)} {bot_info.get('channel_id', 'N/A')}\n\n"
 
                 stats_msg += f"👥 {get_admin_text('users_section', lang)}\n"
@@ -533,7 +533,7 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
         admin_msg = f"👨‍💼 {get_admin_text('admin_panel_title', lang)}\n\n"
 
         if bot_info:
-            admin_msg += f"🤖 {get_admin_text('bot_label', lang)} {bot_info.get('bot_name', 'N/A')}\n"
+            admin_msg += f"🤖 {get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
             admin_msg += f"📢 {get_admin_text('channel_id_label', lang)} {bot_info.get('channel_id', 'N/A')}\n\n"
 
         admin_msg += f"📊 {get_admin_text('short_stats', lang)}\n"

@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 
     // Get spendings
     const spendingsResult = await query(
-      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_name, created_at
+      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_username, created_at
        FROM spendings
        ${whereClause}
        ORDER BY created_at DESC
@@ -145,7 +145,7 @@ router.get('/user/:userId', async (req, res) => {
 
     // Get spendings
     const spendingsResult = await query(
-      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_name, created_at
+      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_username, created_at
        FROM spendings
        WHERE user_id = $1
        ORDER BY created_at DESC
@@ -202,7 +202,7 @@ router.get('/admin/:adminId', async (req, res) => {
 
     // Get spendings
     const spendingsResult = await query(
-      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_name, created_at
+      `SELECT id, role, user_id, username, amount, spend, admin_id, bot_username, created_at
        FROM spendings
        WHERE admin_id = $1 AND role = 'user'
        ORDER BY created_at DESC

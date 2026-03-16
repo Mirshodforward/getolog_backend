@@ -8,7 +8,6 @@ class BotCreationStates(StatesGroup):
     # Client registration
     entering_phone = State()
     # Bot info
-    entering_bot_name = State()
     entering_bot_token = State()
     entering_channel_link = State()
     admin_warning = State()

@@ -20,5 +20,5 @@ class Spending(Base):
     amount = Column(Numeric(10, 2), nullable=False)  # Yechilgan summa
     spend = Column(String(100), nullable=False)  # Nima uchun sarflangan: "1 oy", "1 yil", "cheksiz", "premium"
     admin_id = Column(BigInteger, nullable=True, index=True)  # User uchun - bot egasining ID si
-    bot_name = Column(String(255), nullable=True)  # User uchun - bot nomi
+    bot_username = Column(String(255), nullable=True)  # User uchun - bot_username
     created_at = Column(DateTime(timezone=True), server_default=func.now())

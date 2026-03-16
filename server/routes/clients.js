@@ -161,7 +161,7 @@ router.get('/:userId', async (req, res) => {
 
     // Get client's bots
     const botsResult = await query(
-      `SELECT id, bot_name, status, channel_id, created_at
+      `SELECT id, bot_username, status, channel_id, created_at
        FROM client_bots
        WHERE user_id = $1
        ORDER BY created_at DESC`,
@@ -283,7 +283,7 @@ router.get('/:userId/bots', async (req, res) => {
     const userId = parseInt(req.params.userId);
 
     const botsResult = await query(
-      `SELECT id, bot_name, bot_token, channel_id, status,
+      `SELECT id, bot_username, bot_token, channel_id, status,
               oy_narx, yil_narx, cheksiz_narx, card_number, created_at
        FROM client_bots
        WHERE user_id = $1

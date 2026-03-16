@@ -9,9 +9,14 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy import text
 from app.config import settings
-from app.handlers import start_router, callback_router, message_router, balance_router
+from app.handlers import start_router, callback_router, message_router, balance_router, renew_plan_router
 from app.database import init_db, check_db, AsyncSessionLocal
 from app.crud.bot_crud import get_bots_to_start, update_bot_status, get_all_bots_for_monitoring
+from app.models.client import Client
+from sqlalchemy import select
+from app.crud.spending_crud import create_client_spending
+from app.config import PLAN_CONFIG
+import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +30,7 @@ async def get_active_bots():
     """Get all active client bots from database"""
     async with AsyncSessionLocal() as session:
         query = text("""
-            SELECT user_id, bot_token, bot_name
+            SELECT user_id, bot_token, bot_username
             FROM client_bots
             WHERE status = 'active'
             ORDER BY created_at
@@ -35,33 +40,34 @@ async def get_active_bots():
         return [dict(bot._mapping) for bot in bots]
 
 
-def start_client_bot_process(bot_token: str, bot_name: str, owner_id: int) -> int:
+def start_client_bot_process(bot_token: str, bot_username: str, owner_id: int) -> int:
     """Start a client bot in a subprocess. Returns process ID."""
     try:
         project_root = Path(__file__).resolve().parent
         client_bot_path = project_root / "client_bot_main.py"
         python_exe = sys.executable
 
-        logger.info(f"🚀 Starting bot: {bot_name} (Owner: {owner_id})")
+        logger.info(f"🚀 Starting bot: {bot_username} (Owner: {owner_id})")
 
         # Log file for this bot
         logs_dir = project_root / "logs"
         logs_dir.mkdir(exist_ok=True)
-        safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in bot_name)
+        safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in bot_username)
         log_file = logs_dir / f"bot_{safe_name}.log"
-        log_handle = open(log_file, "a", encoding="utf-8")
-
-        # Start subprocess
-        process = subprocess.Popen(
-            [python_exe, str(client_bot_path), bot_token, bot_name, str(owner_id)],
-            stdout=log_handle,
-            stderr=log_handle,
-            stdin=subprocess.DEVNULL
-        )
-        logger.info(f"✅ Bot started: {bot_name} (PID: {process.pid}, Log: {log_file})")
+        
+        # Start subprocess (using 'with' cleanly closes parent's log_handle)
+        with open(log_file, "a", encoding="utf-8") as log_handle:
+            process = subprocess.Popen(
+                [python_exe, str(client_bot_path), bot_token, bot_username, str(owner_id)],
+                stdout=log_handle,
+                stderr=log_handle,
+                stdin=subprocess.DEVNULL
+            )
+            
+        logger.info(f"✅ Bot started: {bot_username} (PID: {process.pid}, Log: {log_file})")
         return process.pid
     except Exception as e:
-        logger.error(f"❌ Failed to start bot {bot_name}: {e}")
+        logger.error(f"❌ Failed to start bot {bot_username}: {e}")
         return None
 
 
@@ -79,7 +85,7 @@ async def start_all_client_bots():
     for bot in bots:
         pid = start_client_bot_process(
             bot_token=bot['bot_token'],
-            bot_name=bot['bot_name'],
+            bot_username=bot['bot_username'],
             owner_id=bot['user_id']
         )
         # Update process_id and status in database
@@ -183,7 +189,7 @@ async def process_cleaner_daemon():
                     if bot.process_id:
                         # Jarayon hali ishlayaptimi?
                         if not is_process_alive(bot.process_id):
-                            logger.info(f"🔍 Dead process detected: {bot.bot_name} (PID={bot.process_id})")
+                            logger.info(f"🔍 Dead process detected: {bot.bot_username} (PID={bot.process_id})")
                             bot.process_id = None
                             if bot.status == "active":
                                 bot.status = "stopped"
@@ -200,7 +206,7 @@ async def process_cleaner_daemon():
                                 old_pid = bot.process_id
                                 bot.process_id = newest['pid']
                                 await session.commit()
-                                logger.info(f"🔄 Updated PID: {bot.bot_name} ({old_pid} → {newest['pid']})")
+                                logger.info(f"🔄 Updated PID: {bot.bot_username} ({old_pid} → {newest['pid']})")
 
             if cleaned_count > 0:
                 logger.info(f"🧹 Process cleaner: {cleaned_count} jarayon tozalandi")
@@ -212,7 +218,7 @@ async def process_cleaner_daemon():
         await asyncio.sleep(10)
 
 
-def kill_old_process_if_running(bot_token: str, bot_name: str) -> bool:
+def kill_old_process_if_running(bot_token: str, bot_username: str) -> bool:
     """
     Eski jarayonni tekshirish va o'chirish.
     Returns: True agar jarayon o'chirilgan bo'lsa, False aks holda
@@ -224,7 +230,7 @@ def kill_old_process_if_running(bot_token: str, bot_name: str) -> bool:
                 if cmdline and len(cmdline) >= 4:
                     if 'client_bot_main.py' in str(cmdline) and bot_token in str(cmdline):
                         pid = proc.info['pid']
-                        logger.warning(f"🔪 Killing old process for {bot_name}: PID={pid}")
+                        logger.warning(f"🔪 Killing old process for {bot_username}: PID={pid}")
                         psutil.Process(pid).terminate()
                         return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -261,12 +267,12 @@ async def bot_monitor_daemon():
                         bot.process_id = newest['pid']
                         bot.status = "active"
                         await session.commit()
-                        logger.info(f"✅ Bot already running: {bot.bot_name} (PID={newest['pid']}), updated DB")
+                        logger.info(f"✅ Bot already running: {bot.bot_username} (PID={newest['pid']}), updated DB")
                         continue
 
                     # 1. Avval eski jarayonni tekshirish va o'chirish
                     if bot.process_id and is_process_alive(bot.process_id):
-                        logger.warning(f"⚠️ Old process still running for {bot.bot_name} (PID={bot.process_id})")
+                        logger.warning(f"⚠️ Old process still running for {bot.bot_username} (PID={bot.process_id})")
                         try:
                             psutil.Process(bot.process_id).terminate()
                             logger.info(f"🔪 Terminated old process: PID={bot.process_id}")
@@ -274,26 +280,127 @@ async def bot_monitor_daemon():
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
 
-                    logger.info(f"🔄 Starting bot: {bot.bot_name} (should_stop=False, status={bot.status})")
+                    logger.info(f"🔄 Starting bot: {bot.bot_username} (should_stop=False, status={bot.status})")
 
                     # 2. Botni ishga tushirish
                     pid = start_client_bot_process(
                         bot_token=bot.bot_token,
-                        bot_name=bot.bot_name,
+                        bot_username=bot.bot_username,
                         owner_id=bot.user_id
                     )
 
                     if pid:
                         await update_bot_status(session, bot.id, "active", pid)
-                        logger.info(f"✅ Bot started: {bot.bot_name} (PID: {pid})")
+                        logger.info(f"✅ Bot started: {bot.bot_username} (PID: {pid})")
                     else:
-                        logger.error(f"❌ Failed to start bot: {bot.bot_name}")
+                        logger.error(f"❌ Failed to start bot: {bot.bot_username}")
 
         except Exception as e:
             logger.error(f"❌ Bot monitor error: {e}")
 
         # 5 sekund kutish
         await asyncio.sleep(5)
+
+
+async def plan_monitor_daemon(bot: Bot):
+    """
+    Mijozlarning tarif muddatlarini tekshirish darmoni.
+    - Agar tarif tugashiga 1 kun qolgan bo'lsa va balansida yetarli mablag' bo'lsa, avto-yangilaydi.
+    - Agar muddat tugagan bo'lsa va mablag' yetarli bo'lmasa, uni "free" tarifiga tushiradi.
+    """
+    logger.info("📅 Plan monitor daemon started")
+    
+    # Boshida 30 sekund kutish
+    await asyncio.sleep(30)
+    
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                # Faqat 'free' emas bo'lgan, end_date bor mijozlarni olamiz
+                stmt = select(Client).where(Client.plan_type.in_(["standard", "biznes"]), Client.plan_end_date.isnot(None))
+                result = await session.execute(stmt)
+                clients = result.scalars().all()
+                
+                now_tz = datetime.datetime.now(datetime.timezone.utc)
+                
+                for client in clients:
+                    end_date = client.plan_end_date
+                    if end_date.tzinfo is None:
+                        end_date = end_date.replace(tzinfo=datetime.timezone.utc)
+                    
+                    time_left = end_date - now_tz
+                    
+                    # Agar muddati o'tgan bo'lsa yoki 1 kundan kam vaqt qolgan bo'lsa
+                    if time_left.total_seconds() <= 86400: # 24 soat
+                        plan_name = client.plan_type
+                        if plan_name not in PLAN_CONFIG:
+                            continue
+                            
+                        price = PLAN_CONFIG[plan_name]["price"]
+                        current_balance = float(client.balance) if client.balance else 0
+                        
+                        # Balans yetarlimi va Avto-to'lov yonig'mi?
+                        if current_balance >= price and client.oylik_obuna:
+                            # Pulni yechish va 30 kunga uzaytirish
+                            client.balance -= price
+                            
+                            # Spending yozuvini qo'shish
+                            await create_client_spending(
+                                session=session,
+                                user_id=client.user_id,
+                                amount=price,
+                                spend=f"Avto-yangilash: {plan_name.capitalize()}",
+                                username=client.username
+                            )
+                            
+                            # Agar u allaqachon tugagan bo'lsa hozirdan boshlab hisoblaymiz, 
+                            # agar hali vaqti bo'lsa, eski muddatiga 30 kun qo'shamiz
+                            if time_left.total_seconds() <= 0:
+                                client.plan_start_date = now_tz
+                                client.plan_end_date = now_tz + datetime.timedelta(days=30)
+                            else:
+                                client.plan_end_date = end_date + datetime.timedelta(days=30)
+                                
+                            await session.commit()
+                            
+                            try:
+                                await bot.send_message(
+                                    client.user_id,
+                                    f"✅ <b>Tarifingiz avtomatik tarzda uzaytirildi!</b>\n\n"
+                                    f"💎 Tarif: {plan_name.capitalize()}\n"
+                                    f"💸 Yechildi: {price:,.0f} so'm\n"
+                                    f"📅 Yangi muddat: {client.plan_end_date.strftime('%d.%m.%Y %H:%M')}\n",
+                                    parse_mode="HTML"
+                                )
+                            except Exception as e:
+                                logger.error(f"Cannot send welcome message to {client.user_id}: {e}")
+                                
+                        else:
+                            # Mablag' yetarli emas yoki Avto-to'lov o'chiq. Agar muddati aniq o'tib bo'lgan bo'lsa -> free ga tushiramiz
+                            if time_left.total_seconds() <= 0:
+                                client.plan_type = "free"
+                                client.plan_start_date = None
+                                client.plan_end_date = None
+                                await session.commit()
+                                
+                                try:
+                                    reason = "Avto-to'lov o'chirilganligi sababli" if not client.oylik_obuna else "Hisobingizda mablag' yetarli bo'lmaganligi sababli"
+                                    await bot.send_message(
+                                        client.user_id,
+                                        f"⚠️ <b>Tarifingiz muddati tugadi!</b>\n\n"
+                                        f"{reason} tarifingiz avtomatik uzaytirilmadi.\n"
+                                        f"Hozirda sizning tarifingiz <b>Free</b> ga o'zgartirildi.\n\n"
+                                        f"Qayta faollashtirish uchun balansingizni to'ldirib, tarifni yangilang.",
+                                        parse_mode="HTML"
+                                    )
+                                except Exception as e:
+                                    pass
+                            
+        except Exception as e:
+            logger.error(f"❌ Plan monitor error: {e}")
+
+        # Har 15 daqiqada bir tekshiradi
+        await asyncio.sleep(900)
 
 
 async def main():
@@ -323,12 +430,17 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
+    # Start plan monitor daemon as background task
+    plan_task = asyncio.create_task(plan_monitor_daemon(bot))
+    logger.info("📅 Plan monitor daemon ishga tushdi")
+
     # Include routers (order matters!)
     # MUHIM: start_router BIRINCHI bo'lishi kerak - /start komandasi har doim ishlashi uchun
     dp.include_router(start_router)
     dp.include_router(balance_router)
     dp.include_router(message_router)
     dp.include_router(callback_router)
+    dp.include_router(renew_plan_router)
 
     try:
         logger.info("🤖 Bot ishga tushdi...")

@@ -13,7 +13,7 @@ async def create_spending(
     spend: str,
     username: str = None,
     admin_id: int = None,
-    bot_name: str = None
+    bot_username: str = None
 ) -> Spending:
     """
     Yangi sarflanish yozuvini yaratish
@@ -25,7 +25,7 @@ async def create_spending(
         spend: Nima uchun sarflangan (1 oy, 1 yil, cheksiz, premium)
         username: Telegram username (ixtiyoriy)
         admin_id: User uchun - bot egasining ID si
-        bot_name: User uchun - bot nomi
+        bot_username: User uchun - bot username
     """
     spending = Spending(
         role=role,
@@ -34,7 +34,7 @@ async def create_spending(
         amount=amount,
         spend=spend,
         admin_id=admin_id,
-        bot_name=bot_name
+        bot_username=bot_username
     )
     session.add(spending)
     await session.commit()
@@ -68,7 +68,7 @@ async def create_user_spending(
     amount: Decimal,
     spend: str,
     admin_id: int,
-    bot_name: str = None,
+    bot_username: str = None,
     username: str = None
 ) -> Spending:
     """
@@ -85,7 +85,7 @@ async def create_user_spending(
         spend=spend,
         username=username,
         admin_id=admin_id,
-        bot_name=bot_name
+        bot_username=bot_username
     )
 
 

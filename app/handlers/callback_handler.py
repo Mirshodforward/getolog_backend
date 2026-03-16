@@ -231,38 +231,15 @@ async def create_bot_callback(callback: CallbackQuery, state: FSMContext) -> Non
         }
         
         msgs = {
-            "uz": f"🤖 <b>Bot yaratish</b>\n\nSizning tarifingiz: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Iltimos, kontaktingizni ulashish tugmasini bosing:",
-            "ru": f"🤖 <b>Создание бота</b>\n\nВаш тариф: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Пожалуйста, нажмите кнопку для отправки контакта:",
-            "en": f"🤖 <b>Create Bot</b>\n\nYour plan: <b>{plan_names[current_plan][lang]}</b>\n\n📞 Please press the button to share your contact:"
+            "uz": f"🤖 <b>Bot yaratish</b>\n\nSizning tarifingiz: <b>{plan_names[current_plan][lang]}</b>",
+            "ru": f"🤖 <b>Создание бота</b>\n\nВаш тариф: <b>{plan_names[current_plan][lang]}</b>",
+            "en": f"🤖 <b>Create Bot</b>\n\nYour plan: <b>{plan_names[current_plan][lang]}</b>"
         }
-        
-        btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
-        msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
 
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=True
-        )
-
-        await callback.message.edit_text(msgs.get(lang, msgs["uz"]), parse_mode="HTML")
-        await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
-        await state.set_state(BotCreationStates.entering_phone)
-        await callback.answer()
+        from app.handlers.phone_helper import ask_for_phone_or_token
+        await ask_for_phone_or_token(callback, state, lang, client, msgs)
         return
 
-    # No plan selected - show plan selection
-    keyboard_buttons = []
-    
-    # Current plan indicator
-    current_indicator = {
-        "uz": "✅ Sizning tarifingiz",
-        "ru": "✅ Ваш текущий тариф",
-        "en": "✅ Your current plan"
-    }
-    
     plans_info = {
         "free": {
             "uz": "🆓 Free (Bepul, 1 bot)",
@@ -321,22 +298,10 @@ async def select_free_plan(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(plan="free")
 
     # Button text translations
-    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
-    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
-    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-
-    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
-    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
-    await state.set_state(BotCreationStates.entering_phone)
-    await callback.answer()
+    from app.handlers.phone_helper import ask_for_phone_or_token
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, callback.from_user.id)
+    await ask_for_phone_or_token(callback, state, lang, client)
 
 
 @router.callback_query(BotCreationStates.selecting_plan, F.data == "plan_premium")
@@ -382,21 +347,7 @@ async def select_premium_plan(callback: CallbackQuery, state: FSMContext) -> Non
     # If balance is enough - continue directly
     await state.update_data(plan="premium")
 
-    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
-    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
-    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-
-    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
-    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
-    await state.set_state(BotCreationStates.entering_phone)
+    await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 
 
@@ -444,21 +395,7 @@ async def select_standard_plan(callback: CallbackQuery, state: FSMContext) -> No
     # If balance is enough - continue directly
     await state.update_data(plan="standard")
 
-    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
-    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
-    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-
-    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
-    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
-    await state.set_state(BotCreationStates.entering_phone)
+    await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 
 
@@ -506,21 +443,7 @@ async def select_biznes_plan(callback: CallbackQuery, state: FSMContext) -> None
     # If balance is enough - continue directly
     await state.update_data(plan="biznes")
 
-    btn_text = {"uz": "📱 Kontaktni ulashish", "ru": "📱 Поделиться контактом", "en": "📱 Share contact"}
-    msg1 = {"uz": "📞 Iltimos, kontaktingizni ulashish tugmasini bosing:", "ru": "📞 Пожалуйста, нажмите кнопку для отправки контакта:", "en": "📞 Please press the button to share your contact:"}
-    msg2 = {"uz": "👇 Quyidagi tugmani bosing:", "ru": "👇 Нажмите кнопку ниже:", "en": "👇 Press the button below:"}
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=btn_text.get(lang, btn_text["uz"]), request_contact=True)],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-
-    await callback.message.edit_text(msg1.get(lang, msg1["uz"]))
-    await callback.message.answer(msg2.get(lang, msg2["uz"]), reply_markup=keyboard)
-    await state.set_state(BotCreationStates.entering_phone)
+    await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 
 
@@ -547,65 +470,114 @@ async def admin_understood(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "my_bots")
 async def my_bots_callback(callback: CallbackQuery) -> None:
-    """My bots button callback - show bots as inline buttons"""
+    """My bots button callback - show bots as inline buttons based on plan limit"""
+    import datetime
+    
     user_id = callback.from_user.id
 
     async with AsyncSessionLocal() as session:
-        # Get client for language
+        # Get client for language and details
         client = await get_client_by_user_id(session, user_id)
         lang = client.language if client else "uz"
 
         # Get all client bots for this user
         bots = await get_client_bots(session, user_id)
 
-    title = {
-        "uz": "📋 <b>Mening botlarim:</b>\n\nBotni boshqarish uchun ustiga bosing:",
-        "ru": "📋 <b>Мои боты:</b>\n\nНажмите на бота для управления:",
-        "en": "📋 <b>My bots:</b>\n\nClick on a bot to manage:"
-    }
-    no_bots = {
-        "uz": "📋 Sizda hali botlar yo'q.\n\nBot yaratish uchun /start bosing.",
-        "ru": "📋 У вас пока нет ботов.\n\nНажмите /start чтобы создать бота.",
-        "en": "📋 You don't have any bots yet.\n\nPress /start to create a bot."
+    # Determine limits
+    current_plan = "free"
+    # Check plan validity
+    if client and client.plan_type in ["standard", "biznes"]:
+        now_tz = datetime.datetime.now(datetime.timezone.utc)
+        if client.plan_end_date:
+            end_date = client.plan_end_date
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=datetime.timezone.utc)
+                
+            if end_date > now_tz:
+                current_plan = client.plan_type
+        else:
+            current_plan = client.plan_type
+
+    if current_plan == "biznes":
+        bot_limit = settings.BIZNES_PLAN_BOT_LIMIT
+    elif current_plan == "standard":
+        bot_limit = settings.STANDARD_PLAN_BOT_LIMIT
+    else:
+        bot_limit = settings.FREE_PLAN_BOT_LIMIT
+
+    balance = float(client.balance) if client and client.balance else 0
+
+    def format_dt(dt):
+        if not dt: return "N/A"
+        return dt.strftime('%d.%m.%Y %H:%M')
+
+    start_str = format_dt(client.plan_start_date) if client else "N/A"
+    end_str = format_dt(client.plan_end_date) if client else "N/A"
+    plan_name = current_plan.capitalize()
+
+    msg_text = {
+        "uz": (
+            "📋 <b>Mening botlarim:</b>\n\n"
+            f"💰 Balansingiz: <b>{balance:,.0f} so'm</b>\n"
+            f"💎 Tarifingiz: <b>{plan_name}</b>\n"
+            f"📅 Muddat: <b>{start_str}</b> dan <b>{end_str}</b> gacha\n\n"
+            "👇 Botni boshqarish uchun ustiga bosing yoki yangi bot qo'shing:"
+        ),
+        "ru": (
+            "📋 <b>Мои боты:</b>\n\n"
+            f"💰 Ваш баланс: <b>{balance:,.0f} сум</b>\n"
+            f"💎 Ваш тариф: <b>{plan_name}</b>\n"
+            f"📅 Срок: от <b>{start_str}</b> до <b>{end_str}</b>\n\n"
+            "👇 Нажмите на бота для управления или добавьте нового:"
+        ),
+        "en": (
+            "📋 <b>My bots:</b>\n\n"
+            f"💰 Your balance: <b>{balance:,.0f} UZS</b>\n"
+            f"💎 Your plan: <b>{plan_name}</b>\n"
+            f"📅 Period: from <b>{start_str}</b> to <b>{end_str}</b>\n\n"
+            "👇 Click on a bot to manage or add a new one:"
+        )
     }
 
-    if bots:
-        # Create inline buttons for each bot
-        keyboard_buttons = []
-        for bot in bots:
+    keyboard_buttons = []
+    
+    # Render slots
+    total_slots = max(bot_limit, len(bots))
+    for i in range(total_slots):
+        if i < len(bots):
+            bot = bots[i]
             status_icon = "✅" if bot.status == "active" else "⏸️" if bot.status == "stopped" else "🆓"
             keyboard_buttons.append([
                 InlineKeyboardButton(
-                    text=f"{status_icon} {bot.bot_name}",
+                    text=f"{status_icon} @{bot.bot_username}",
                     callback_data=f"bot_manage_{bot.id}"
                 )
             ])
-        
-        # Add back button
-        back_text = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
-        keyboard_buttons.append([
-            InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="back_to_main")
-        ])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        await callback.message.edit_text(
-            title.get(lang, title["uz"]),
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-    else:
-        # No bots - show back button
-        back_text = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="back_to_main")]
-        ])
-        await callback.message.edit_text(
-            no_bots.get(lang, no_bots["uz"]),
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-    await callback.answer()
+        else:
+            btn_add_text = {
+                "uz": "➕ Yangi bot",
+                "ru": "➕ Новый бот",
+                "en": "➕ New bot"
+            }
+            keyboard_buttons.append([
+                InlineKeyboardButton(
+                    text=btn_add_text.get(lang, btn_add_text["uz"]),
+                    callback_data="create_bot"
+                )
+            ])
 
+    # Add back button
+    back_text = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
+    keyboard_buttons.append([
+        InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="back_to_main")
+    ])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    await callback.message.edit_text(
+        msg_text.get(lang, msg_text["uz"]),
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
 
 @router.callback_query(F.data.startswith("bot_manage_"))
 async def bot_manage_callback(callback: CallbackQuery) -> None:
@@ -637,15 +609,37 @@ async def bot_manage_callback(callback: CallbackQuery) -> None:
     }
 
     # Build info text
-    info_text = f"🤖 <b>{bot.bot_name}</b>\n\n"
+    info_text = f"🤖 <b>Bot Ma'lumotlari</b>\n\n"
     info_text += f"📊 Status: {status_text.get(bot.status, status_text['free']).get(lang, status_text['free']['uz'])}\n"
     info_text += f"👥 {'Foydalanuvchilar' if lang == 'uz' else 'Пользователи' if lang == 'ru' else 'Users'}: {users_count}\n"
     if bot.bot_username:
-        info_text += f"🔗 @{bot.bot_username}\n"
-    if bot.oy_narx:
-        currency = "so'm" if lang == 'uz' else 'сум' if lang == 'ru' else 'UZS'
-        price_label = 'Oylik' if lang == 'uz' else 'Месяц' if lang == 'ru' else 'Monthly'
-        info_text += f"💰 {price_label}: {bot.oy_narx:,.0f} {currency}\n"
+        info_text += f"🔗 <b>@{bot.bot_username}</b>\n\n"
+        
+    currency = "so'm" if lang == 'uz' else 'сум' if lang == 'ru' else 'UZS'
+    
+    if bot.oy_narx is not None:
+        oy_label = 'Oylik' if lang == 'uz' else 'Месяц' if lang == 'ru' else 'Monthly'
+        info_text += f"💵 {oy_label}: <b>{bot.oy_narx:,.0f}</b> {currency}\n"
+        
+    if bot.yil_narx is not None:
+        yil_label = 'Yillik' if lang == 'uz' else 'Год' if lang == 'ru' else 'Yearly'
+        info_text += f"💰 {yil_label}: <b>{bot.yil_narx:,.0f}</b> {currency}\n"
+        
+    if bot.cheksiz_narx is not None:
+        chek_label = 'Cheksiz' if lang == 'uz' else 'Навсегда' if lang == 'ru' else 'Lifetime'
+        info_text += f"💎 {chek_label}: <b>{bot.cheksiz_narx:,.0f}</b> {currency}\n"
+        
+    if bot.card_number:
+        card_label = 'Karta' if lang == 'uz' else 'Карта' if lang == 'ru' else 'Card'
+        info_text += f"\n💳 {card_label}: <code>{bot.card_number}</code>\n"
+        
+    if bot.channel_id:
+        chan_label = 'Kanal ID' if lang == 'uz' else 'ID Канала' if lang == 'ru' else 'Channel ID'
+        info_text += f"📢 {chan_label}: <code>{bot.channel_id}</code>\n"
+        
+    if getattr(bot, "manager_invite_link", None):
+        link_label = 'Kanal havolasi' if lang == 'uz' else 'Ссылка на канал' if lang == 'ru' else 'Channel link'
+        info_text += f"🌐 {link_label}: {bot.manager_invite_link}\n"
 
     edit_text = {"uz": "✏️ Tahrirlash", "ru": "✏️ Редактировать", "en": "✏️ Edit"}
     delete_text = {"uz": "🗑 O'chirish", "ru": "🗑 Удалить", "en": "🗑 Delete"}
@@ -684,9 +678,9 @@ async def bot_delete_callback(callback: CallbackQuery) -> None:
             return
 
     confirm_msg = {
-        "uz": f"⚠️ <b>Diqqat!</b>\n\n<b>{bot.bot_name}</b> botini o'chirmoqchimisiz?\n\nBu amalni ortga qaytarib bo'lmaydi!",
-        "ru": f"⚠️ <b>Внимание!</b>\n\nВы хотите удалить бота <b>{bot.bot_name}</b>?\n\nЭто действие нельзя отменить!",
-        "en": f"⚠️ <b>Warning!</b>\n\nDo you want to delete <b>{bot.bot_name}</b>?\n\nThis action cannot be undone!"
+        "uz": f"⚠️ <b>Diqqat!</b>\n\n<b>{bot.bot_username}</b> botini o'chirmoqchimisiz?\n\nBu amalni ortga qaytarib bo'lmaydi!",
+        "ru": f"⚠️ <b>Внимание!</b>\n\nВы хотите удалить бота <b>{bot.bot_username}</b>?\n\nЭто действие нельзя отменить!",
+        "en": f"⚠️ <b>Warning!</b>\n\nDo you want to delete <b>{bot.bot_username}</b>?\n\nThis action cannot be undone!"
     }
     
     confirm_text = {"uz": "✅ Tasdiqlash", "ru": "✅ Подтвердить", "en": "✅ Confirm"}
@@ -742,9 +736,9 @@ async def bot_delete_confirm_callback(callback: CallbackQuery) -> None:
             await delete_client_bot(session, bot_id)
 
             success_msg = {
-                "uz": f"✅ <b>{bot.bot_name}</b> boti muvaffaqiyatli o'chirildi!",
-                "ru": f"✅ Бот <b>{bot.bot_name}</b> успешно удалён!",
-                "en": f"✅ Bot <b>{bot.bot_name}</b> successfully deleted!"
+                "uz": f"✅ <b>{bot.bot_username}</b> boti muvaffaqiyatli o'chirildi!",
+                "ru": f"✅ Бот <b>{bot.bot_username}</b> успешно удалён!",
+                "en": f"✅ Bot <b>{bot.bot_username}</b> successfully deleted!"
             }
 
             back_text = {"uz": "⬅️ Botlarimga qaytish", "ru": "⬅️ К моим ботам", "en": "⬅️ Back to my bots"}
@@ -753,7 +747,7 @@ async def bot_delete_confirm_callback(callback: CallbackQuery) -> None:
             ])
 
             await callback.message.edit_text(success_msg.get(lang, success_msg["uz"]), parse_mode="HTML", reply_markup=keyboard)
-            logger.info(f"Bot {bot.bot_name} (ID: {bot_id}) deleted by user {user_id}")
+            logger.info(f"Bot {bot.bot_username} (ID: {bot_id}) deleted by user {user_id}")
 
         except Exception as e:
             logger.error(f"Error deleting bot {bot_id}: {e}")
@@ -801,13 +795,24 @@ async def bot_edit_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(edit_bot_id=bot_id, lang=lang)
 
     edit_title = {
-        "uz": f"✏️ <b>{bot.bot_name}</b> tahrirlash\n\nNimani o'zgartirmoqchisiz?",
-        "ru": f"✏️ Редактирование <b>{bot.bot_name}</b>\n\nЧто хотите изменить?",
-        "en": f"✏️ Edit <b>{bot.bot_name}</b>\n\nWhat would you like to change?"
+        "uz": f"✏️ <b>{bot.bot_username}</b> tahrirlash\n\nNimani o'zgartirmoqchisiz?",
+        "ru": f"✏️ Редактирование <b>{bot.bot_username}</b>\n\nЧто хотите изменить?",
+        "en": f"✏️ Edit <b>{bot.bot_username}</b>\n\nWhat would you like to change?"
     }
 
     card_btn = {"uz": "💳 Karta raqami", "ru": "💳 Номер карты", "en": "💳 Card number"}
     prices_btn = {"uz": "💰 Narxlar", "ru": "💰 Цены", "en": "💰 Prices"}
+    
+    ads_status = "🟢 Yoqilgan" if client.switch_ads else "🔴 O'chirilgan"
+    ads_status_ru = "🟢 Включена" if client.switch_ads else "🔴 Отключена"
+    ads_status_en = "🟢 Enabled" if client.switch_ads else "🔴 Disabled"
+    
+    ads_btn = {
+        "uz": f"📢 Reklama: {ads_status}", 
+        "ru": f"📢 Реклама: {ads_status_ru}", 
+        "en": f"📢 Ads: {ads_status_en}"
+    }
+    
     back_btn = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -815,12 +820,59 @@ async def bot_edit_callback(callback: CallbackQuery, state: FSMContext) -> None:
             InlineKeyboardButton(text=card_btn.get(lang, card_btn["uz"]), callback_data=f"bot_edit_card_{bot_id}"),
             InlineKeyboardButton(text=prices_btn.get(lang, prices_btn["uz"]), callback_data=f"bot_edit_prices_{bot_id}")
         ],
+        [
+            InlineKeyboardButton(text=ads_btn.get(lang, ads_btn["uz"]), callback_data=f"bot_toggle_ads_{bot_id}")
+        ],
         [InlineKeyboardButton(text=back_btn.get(lang, back_btn["uz"]), callback_data=f"bot_manage_{bot_id}")]
     ])
 
     await callback.message.edit_text(edit_title.get(lang, edit_title["uz"]), parse_mode="HTML", reply_markup=keyboard)
     await state.set_state(BotEditStates.selecting_field)
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("bot_toggle_ads_"))
+async def bot_toggle_ads_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    """Toggle Ads logic"""
+    bot_id = int(callback.data.split("_")[3])
+    user_id = callback.from_user.id
+    
+    import datetime
+
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if not client:
+            return
+            
+        lang = client.language if client else "uz"
+        
+        # Check plan
+        has_plan = False
+        if client.plan_type in ["standard", "biznes"]:
+            if client.plan_end_date:
+                now_tz = datetime.datetime.now(datetime.timezone.utc)
+                end_date = client.plan_end_date
+                if end_date.tzinfo is None:
+                    end_date = end_date.replace(tzinfo=datetime.timezone.utc)
+                if end_date > now_tz:
+                    has_plan = True
+            else:
+                has_plan = True
+                
+        if not has_plan:
+            errors = {
+                "uz": "❌ Reklamani o'chirish uchun tarif sotib olishingiz kerak!",
+                "ru": "❌ Вам нужно купить тариф, чтобы отключить рекламу!",
+                "en": "❌ You need to buy a plan to disable ads!"
+            }
+            await callback.answer(errors.get(lang, errors["uz"]), show_alert=True)
+            return
+            
+        # Toggle boolean
+        client.switch_ads = not client.switch_ads
+        await session.commit()
+        
+    await bot_edit_callback(callback, state)
 
 
 @router.callback_query(F.data.startswith("bot_edit_card_"))
@@ -848,9 +900,9 @@ async def bot_edit_card_callback(callback: CallbackQuery, state: FSMContext) -> 
     await state.update_data(edit_bot_id=bot_id, lang=lang, edit_type="card")
 
     stopping_msg = {
-        "uz": f"⏳ <b>{bot.bot_name}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
-        "ru": f"⏳ <b>{bot.bot_name}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
-        "en": f"⏳ <b>{bot.bot_name}</b> is stopping...\n\nBot is temporarily stopped for editing."
+        "uz": f"⏳ <b>{bot.bot_username}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
+        "ru": f"⏳ <b>{bot.bot_username}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
+        "en": f"⏳ <b>{bot.bot_username}</b> is stopping...\n\nBot is temporarily stopped for editing."
     }
     await callback.message.edit_text(stopping_msg.get(lang, stopping_msg["uz"]), parse_mode="HTML")
 
@@ -907,9 +959,9 @@ async def bot_edit_prices_callback(callback: CallbackQuery, state: FSMContext) -
     )
 
     stopping_msg = {
-        "uz": f"⏳ <b>{bot.bot_name}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
-        "ru": f"⏳ <b>{bot.bot_name}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
-        "en": f"⏳ <b>{bot.bot_name}</b> is stopping...\n\nBot is temporarily stopped for editing."
+        "uz": f"⏳ <b>{bot.bot_username}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
+        "ru": f"⏳ <b>{bot.bot_username}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
+        "en": f"⏳ <b>{bot.bot_username}</b> is stopping...\n\nBot is temporarily stopped for editing."
     }
     await callback.message.edit_text(stopping_msg.get(lang, stopping_msg["uz"]), parse_mode="HTML")
 
@@ -1248,12 +1300,17 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
 
             client.terms = True
             client.plan_type = data['plan']
+            import datetime
+            now = datetime.datetime.now(datetime.timezone.utc)
+            client.plan_start_date = now
+            if data['plan'] != 'free':
+                client.plan_end_date = now + datetime.timedelta(days=30)
 
         # Create bot
         created_bot = await create_client_bot(
             session,
             user_id=user_id,
-            bot_name=data['bot_name'],
+            bot_username=data['bot_username'],
             bot_token=data['bot_token'],
             channel_id=int(data['channel_link']),  # Changed to channel_id
             card_number=data['card_number'],
@@ -1282,13 +1339,13 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
 
     logger.info(f"🚀 Bot launch started: {clients_bot_path}")
     logger.info(f"📝 Token: {data['bot_token'][:20]}...")
-    logger.info(f"🤖 Name: {data['bot_name']}")
+    logger.info(f"🤖 Name: {data['bot_username']}")
     logger.info(f"👤 Owner ID: {user_id}")
 
     # Write to log file
     with open(log_file, "a", encoding="utf-8") as log:
         log.write(f"\n{'='*60}\n")
-        log.write(f"Bot: {data['bot_name']} | Owner: {user_id}\n")
+        log.write(f"Bot: {data['bot_username']} | Owner: {user_id}\n")
         log.write(f"Time: {datetime.now()}\n")
         log.write(f"{'='*60}\n")
 
@@ -1297,7 +1354,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
 
     # Launch subprocess (non-blocking)
     process = subprocess.Popen(
-        [python_exe, str(clients_bot_path), data['bot_token'], data['bot_name'], str(user_id)],
+        [python_exe, str(clients_bot_path), data['bot_token'], data['bot_username'], str(user_id)],
         stdout=log_handle,
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
@@ -1365,7 +1422,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
         f"👤 Client: <b>{client_name}</b>\n"
         f"📱 Username: @{client_username}\n"
         f"🆔 User ID: <code>{user_id}</code>\n\n"
-        f"🤖 Bot nomi: <b>{data['bot_name']}</b>\n"
+        f"🤖 Bot nomi: <b>{data['bot_username']}</b>\n"
         f"� Bot username: @{bot_username or 'Noma\'lum'}\n"
         f"📺 Kanal ID: <code>{data['channel_link']}</code>\n"
         f"💰 Tarif: <b>{'Premium' if data['plan'] == 'premium' else 'Free'}</b>\n"
@@ -1379,7 +1436,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
             reply_markup=manager_keyboard,
             parse_mode="HTML"
         )
-        logger.info(f"📨 Manager notified about new bot: {data['bot_name']}")
+        logger.info(f"📨 Manager notified about new bot: {data['bot_username']}")
     except Exception as notify_error:
         logger.error(f"❌ Manager notification error: {notify_error}")
 
@@ -1392,7 +1449,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
         "ru": "✅ <b>Бот успешно создан!</b>",
         "en": "✅ <b>Bot created successfully!</b>"
     }
-    bot_name_label = {"uz": "🤖 Bot nomi", "ru": "🤖 Название бота", "en": "🤖 Bot name"}
+    bot_username_label = {"uz": "🤖 Bot username", "ru": "🤖 Юзернейм бота", "en": "🤖 Bot username"}
     plan_label = {"uz": "💰 Tarif", "ru": "💰 Тариф", "en": "💰 Plan"}
     status_label = {"uz": "📊 Holati", "ru": "📊 Статус", "en": "📊 Status"}
     status_active = {"uz": "Faol", "ru": "Активен", "en": "Active"}
@@ -1401,7 +1458,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
 
     success_msg = (
         f"{success_titles.get(lang, success_titles['uz'])}\n\n"
-        f"{bot_name_label.get(lang, bot_name_label['uz'])}: <b>{data['bot_name']}</b>\n"
+        f"{bot_username_label.get(lang, bot_username_label['uz'])}: <b>@{data['bot_username']}</b>\n"
         f"👤 Username: <b>@{bot_username or unknown.get(lang, 'Unknown')}</b>\n"
         f"{plan_label.get(lang, plan_label['uz'])}: <b>{plan_names.get(lang, plan_names['uz']).get(data['plan'], 'Free')}</b>\n"
         f"{status_label.get(lang, status_label['uz'])}: <b>{status_active.get(lang, 'Active')}</b>\n"
@@ -1478,13 +1535,18 @@ async def cancel_creation(callback: CallbackQuery, state: FSMContext) -> None:
             if client:
                 client.terms = False
                 client.plan_type = data['plan']
+            import datetime
+            now = datetime.datetime.now(datetime.timezone.utc)
+            client.plan_start_date = now
+            if data['plan'] != 'free':
+                client.plan_end_date = now + datetime.timedelta(days=30)
                 client.phone_number = data['phone']
 
             # Create bot with inactive status
             bot = await create_client_bot(
                 session,
                 user_id=user_id,
-                bot_name=data['bot_name'],
+                bot_username=data['bot_username'],
                 bot_token=data['bot_token'],
                 channel_id=int(data['channel_link']),
                 card_number=data['card_number'],
@@ -1525,13 +1587,13 @@ async def manager_approve_bot(callback: CallbackQuery) -> None:
     async with AsyncSessionLocal() as session:
         bot = await get_bot_by_id(session, bot_id)
         if bot:
-            bot_name = bot.bot_name
+            bot_username = bot.bot_username
             # Update message to show approved
             await callback.message.edit_text(
                 callback.message.text + f"\n\n✅ <b>Tasdiqlandi</b> - Bot ishlayapti",
                 parse_mode="HTML"
             )
-            logger.info(f"✅ Manager approved bot: {bot_name} (ID: {bot_id})")
+            logger.info(f"✅ Manager approved bot: {bot_username} (ID: {bot_id})")
         else:
             await callback.message.edit_text(
                 callback.message.text + f"\n\n⚠️ Bot topilmadi",
@@ -1552,18 +1614,18 @@ async def manager_stop_bot(callback: CallbackQuery) -> None:
         await callback.answer("❌ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
         return
 
-        bot_name = bot.bot_name
+        bot_username = bot.bot_username
 
         # Set should_stop = True (daemon will handle stopping)
         await set_bot_stop_flag(session, bot_id, True)
-        logger.info(f"🛑 should_stop flag set for bot: {bot_name} (ID: {bot_id})")
+        logger.info(f"🛑 should_stop flag set for bot: {bot_username} (ID: {bot_id})")
 
         # Update message to show stopping
         await callback.message.edit_text(
             callback.message.text + f"\n\n🛑 <b>To'xtatilmoqda...</b> - Bot tez orada to'xtatiladi",
             parse_mode="HTML"
         )
-        logger.info(f"🛑 Manager requested stop for bot: {bot_name} (ID: {bot_id})")
+        logger.info(f"🛑 Manager requested stop for bot: {bot_username} (ID: {bot_id})")
 
     await callback.answer("🛑 Bot to'xtatish buyrug'i yuborildi!")
 
@@ -1593,8 +1655,8 @@ async def check_bot_admin(callback: CallbackQuery) -> None:
             
             bot_token = bot_from_db.bot_token
             channel_id = int(bot_from_db.channel_id) if isinstance(bot_from_db.channel_id, str) else bot_from_db.channel_id
-            bot_name = bot_from_db.bot_name
-            logger.info(f"Bot details - Name: {bot_name}, Channel: {channel_id} (type: {type(channel_id).__name__})")
+            bot_username = bot_from_db.bot_username
+            logger.info(f"Bot details - Name: {bot_username}, Channel: {channel_id} (type: {type(channel_id).__name__})")
         
         # Check admin status
         is_admin = False
@@ -1678,7 +1740,7 @@ async def check_bot_admin(callback: CallbackQuery) -> None:
                 bot_from_db = await get_bot_by_id(session, bot_id)
                 if bot_from_db:
                     user_id = bot_from_db.user_id
-                    bot_name = bot_from_db.bot_name
+                    bot_username = bot_from_db.bot_username
                     
                     # Update with the newly created link if it didn't exist
                     if manager_invite_link and not bot_from_db.manager_invite_link:
@@ -1691,7 +1753,7 @@ async def check_bot_admin(callback: CallbackQuery) -> None:
                     else:
                         manager_invite_link = bot_from_db.manager_invite_link
                     
-                    logger.info(f"Bot {bot_name} verified as admin - no duplicate manager notification sent")
+                    logger.info(f"Bot {bot_username} verified as admin - no duplicate manager notification sent")
                 else:
                     logger.error(f"Bot not found in database during notification: {bot_id}")
             
@@ -1718,3 +1780,65 @@ async def check_bot_admin(callback: CallbackQuery) -> None:
     except Exception as e:
         logger.exception(f"Unexpected error in check_bot_admin: {e}")
         await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
+
+@router.callback_query(F.data == "toggle_auto_renew")
+async def toggle_auto_renew_callback(callback: CallbackQuery) -> None:
+    """Toggle the auto-renew feature in settings"""
+    user_id = callback.from_user.id
+    
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if not client:
+            return
+            
+        # Toggle
+        client.oylik_obuna = not client.oylik_obuna
+        await session.commit()
+        
+        lang = client.language or "uz"
+        
+        # Determine language translations specifically for settings update
+        status = "🟢 Yoqilgan" if client.oylik_obuna else "🔴 O'chirilgan"
+        lang_text = "O'zbekcha" if lang == "uz" else "Русский" if lang == "ru" else "English"
+        
+        if lang == "ru":
+            text = "⚙️ <b>Настройки</b>\n\nВыберите, что хотите изменить:"
+            status = "🟢 Включена" if client.oylik_obuna else "🔴 Отключена"
+            btn_auto = f"🔄 Авто-оплата: {status}"
+            btn_lang = f"🌐 Язык: {lang_text}"
+        elif lang == "en":
+            text = "⚙️ <b>Settings</b>\n\nChoose what to change:"
+            status = "🟢 Enabled" if client.oylik_obuna else "🔴 Disabled"
+            btn_auto = f"🔄 Auto-renew: {status}"
+            btn_lang = f"🌐 Language: {lang_text}"
+        else:
+            text = "⚙️ <b>Sozlamalar</b>\n\nQuyidagilardan birini tanlang:"
+            btn_auto = f"🔄 Avto to'lov: {status}"
+            btn_lang = f"🌐 Til: {lang_text}"
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=btn_auto, callback_data="toggle_auto_renew")],
+            [InlineKeyboardButton(text=btn_lang, callback_data="cmd_lang_trigger")]
+        ])
+        
+        try:
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+        except:
+            pass # Unchanged message exception catch
+            
+    await callback.answer("Avto to'lov o'zgartirildi =)")
+
+@router.callback_query(F.data == "cmd_lang_trigger")
+async def cmd_lang_trigger_callback(callback: CallbackQuery) -> None:
+    """Trigger language selection from settings menu"""
+    from app.translations import get_language_keyboard
+    lang_buttons = get_language_keyboard()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=lang_buttons[0]["text"], callback_data=lang_buttons[0]["callback_data"])],
+        [InlineKeyboardButton(text=lang_buttons[1]["text"], callback_data=lang_buttons[1]["callback_data"])],
+        [InlineKeyboardButton(text=lang_buttons[2]["text"], callback_data=lang_buttons[2]["callback_data"])],
+    ])
+    text = "Kerakli tilni tanlang:\nВыберите нужный язык:\nChoose your language:"
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+

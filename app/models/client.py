@@ -11,7 +11,11 @@ class Client(Base):
     user_id = Column(BigInteger, unique=True, index=True, nullable=False)  # Removed ForeignKey
     username = Column(String(255), nullable=True)
     phone_number = Column(String(20), nullable=True)
-    plan_type = Column(String(50), nullable=True)
+    plan_type = Column(String(50), nullable=True) #free, standart, biznes
+    plan_start_date = Column(DateTime(timezone=True), nullable=True)
+    plan_end_date = Column(DateTime(timezone=True), nullable=True)
+    oylik_obuna = Column(Boolean, default=False)
+    switch_ads = Column(Boolean, default=True)
     balance = Column(Numeric(10, 2), default=0)
     terms = Column(Boolean, default=False)
     language = Column(String(10), default="uz")

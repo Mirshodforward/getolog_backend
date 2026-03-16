@@ -3,11 +3,10 @@ from sqlalchemy import select
 from app.models.client_bot import ClientBot
 
 
-async def create_client_bot(session: AsyncSession, user_id: int, bot_name: str, bot_token: str, **kwargs):
+async def create_client_bot(session: AsyncSession, user_id: int, bot_token: str, **kwargs):
     """Create new client bot"""
     client_bot = ClientBot(
         user_id=user_id,
-        bot_name=bot_name,
         bot_token=bot_token,
         **kwargs
     )

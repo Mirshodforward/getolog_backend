@@ -9,7 +9,8 @@ async def create_client(session: AsyncSession, user_id: int, username: str = Non
         user_id=user_id,
         username=username,
         phone_number=phone_number,
-        language=language
+        language=language,
+        plan_type="free"
     )
     session.add(client)
     await session.commit()

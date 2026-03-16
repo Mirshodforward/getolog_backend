@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
 
     // Get bots with owner info (including new fields)
     const botsResult = await query(
-      `SELECT cb.id, cb.user_id, cb.bot_name, cb.bot_token, cb.bot_username,
+      `SELECT cb.id, cb.user_id, cb.bot_username, cb.bot_token, cb.bot_username,
               cb.channel_id, cb.manager_invite_link,
               cb.status, cb.process_id, cb.should_stop, cb.oy_narx, cb.yil_narx, cb.cheksiz_narx,
               cb.card_number, cb.created_at,
@@ -333,7 +333,7 @@ router.post('/:botId/stop', async (req, res) => {
       [botId]
     );
 
-    console.log(`🛑 Stop signal sent to bot ${bot.bot_name} (ID: ${botId})`);
+    console.log(`🛑 Stop signal sent to bot ${bot.bot_username} (ID: ${botId})`);
 
     res.json({
       success: true,
@@ -389,7 +389,7 @@ router.post('/:botId/start', async (req, res) => {
       [botId]
     );
 
-    console.log(`🚀 Start signal sent to bot ${bot.bot_name} (ID: ${botId})`);
+    console.log(`🚀 Start signal sent to bot ${bot.bot_username} (ID: ${botId})`);
 
     res.json({
       success: true,

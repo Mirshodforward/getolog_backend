@@ -20,9 +20,14 @@ Sections:
 TRANSLATIONS = {
     # ==================== COMMON ====================
     "welcome": {
-        "uz": "Assalomu alaykum, {name}! Xush kelibsiz!",
-        "ru": "Здравствуйте, {name}! Добро пожаловать!",
-        "en": "Hello, {name}! Welcome!"
+        "uz": "👋 Assalomu alaykum, {name}! Xush kelibsiz!\n\n💰 Balans: <b>{balance} so'm</b>\n📦 Tarif: <b>{plan}</b>\n⏳ Boshlanish: <b>{start_date}</b>\n⌛ Tugash: <b>{end_date}</b>",
+        "ru": "👋 Здравствуйте, {name}! Добро пожаловать!\n\n💰 Баланс: <b>{balance} сум</b>\n📦 Тариф: <b>{plan}</b>\n⏳ Начало: <b>{start_date}</b>\n⌛ Окончание: <b>{end_date}</b>",
+        "en": "👋 Hello, {name}! Welcome!\n\n💰 Balance: <b>{balance} UZS</b>\n📦 Plan: <b>{plan}</b>\n⏳ Start: <b>{start_date}</b>\n⌛ End: <b>{end_date}</b>"
+    },
+    "btn_buy_plan": {
+        "uz": "🛒 Tarif sotib olish / Yangilash",
+        "ru": "🛒 Купить / Обновить тариф",
+        "en": "🛒 Buy / Renew Plan"
     },
     "select_language": {
         "uz": "Tilni tanlang:",
@@ -83,12 +88,12 @@ TRANSLATIONS = {
         "ru": "Отправить номер телефона",
         "en": "Send phone number"
     },
-    "enter_bot_name": {
+    "enter_bot_username": {
         "uz": "Bot nomini kiriting (kamida 2 ta belgi):",
         "ru": "Введите название бота (минимум 2 символа):",
         "en": "Enter bot name (at least 2 characters):"
     },
-    "bot_name_too_short": {
+    "bot_username_too_short": {
         "uz": "Bot nomi juda qisqa! Kamida 2 ta belgi bo'lishi kerak.",
         "ru": "Название слишком короткое! Минимум 2 символа.",
         "en": "Bot name is too short! At least 2 characters required."
@@ -277,12 +282,12 @@ TRANSLATIONS = {
         "ru": "Неверный номер телефона! Попробуйте снова.",
         "en": "Invalid phone number! Please try again."
     },
-    "msg_enter_bot_name": {
+    "msg_enter_bot_username": {
         "uz": "Bot nomini kiriting:\n\nMasalan: Birinchi Bot, kurs_bot, bot123",
         "ru": "Введите название бота:\n\nНапример: Первый Бот, kurs_bot, bot123",
         "en": "Enter bot name:\n\nExample: First Bot, kurs_bot, bot123"
     },
-    "bot_name_short": {
+    "bot_username_short": {
         "uz": "Bot nomi juda qisqa! Iltimos, 2 harfdan uzun nom kiriting.",
         "ru": "Название слишком короткое! Введите минимум 2 символа.",
         "en": "Bot name is too short! Please enter at least 2 characters."
@@ -353,9 +358,9 @@ TRANSLATIONS = {
         "en": "Enter unlimited price (UZS, e.g.: 1000000):"
     },
     "summary": {
-        "uz": "<b>Qayta ko'rib chiqing</b>\n\nBot nomi: <b>{bot_name}</b>\nTarif: <b>{plan}</b>\nTel: <b>{phone}</b>\nKanal ID: <b>{channel}</b>\nKarta: <b>****{card}</b>\n\n<b>Narxlar:</b>\n  • Oylik: <b>{monthly:,.0f} so'm</b>\n  • Yillik: <b>{yearly:,.0f} so'm</b>\n  • Cheksiz: <b>{unlimited:,.0f} so'm</b>\n\nSiz quyidagi Tasdiqlash tugmasini bosish orqali <b>Terms of Service</b> shartlarni qabul qilasiz.",
-        "ru": "<b>Проверьте данные</b>\n\nНазвание: <b>{bot_name}</b>\nТариф: <b>{plan}</b>\nТел: <b>{phone}</b>\nID канала: <b>{channel}</b>\nКарта: <b>****{card}</b>\n\n<b>Цены:</b>\n  • Месяц: <b>{monthly:,.0f} сум</b>\n  • Год: <b>{yearly:,.0f} сум</b>\n  • Безлимит: <b>{unlimited:,.0f} сум</b>\n\nНажав Подтвердить, вы принимаете <b>Условия использования</b>.",
-        "en": "<b>Review details</b>\n\nBot name: <b>{bot_name}</b>\nPlan: <b>{plan}</b>\nPhone: <b>{phone}</b>\nChannel ID: <b>{channel}</b>\nCard: <b>****{card}</b>\n\n<b>Prices:</b>\n  • Monthly: <b>{monthly:,.0f} UZS</b>\n  • Yearly: <b>{yearly:,.0f} UZS</b>\n  • Unlimited: <b>{unlimited:,.0f} UZS</b>\n\nBy pressing Confirm, you accept the <b>Terms of Service</b>."
+        "uz": "<b>Qayta ko'rib chiqing</b>\n\nBot nomi: <b>{bot_username}</b>\nTarif: <b>{plan}</b>\nTel: <b>{phone}</b>\nKanal ID: <b>{channel}</b>\nKarta: <b>****{card}</b>\n\n<b>Narxlar:</b>\n  • Oylik: <b>{monthly:,.0f} so'm</b>\n  • Yillik: <b>{yearly:,.0f} so'm</b>\n  • Cheksiz: <b>{unlimited:,.0f} so'm</b>\n\nSiz quyidagi Tasdiqlash tugmasini bosish orqali <b>Terms of Service</b> shartlarni qabul qilasiz.",
+        "ru": "<b>Проверьте данные</b>\n\nНазвание: <b>{bot_username}</b>\nТариф: <b>{plan}</b>\nТел: <b>{phone}</b>\nID канала: <b>{channel}</b>\nКарта: <b>****{card}</b>\n\n<b>Цены:</b>\n  • Месяц: <b>{monthly:,.0f} сум</b>\n  • Год: <b>{yearly:,.0f} сум</b>\n  • Безлимит: <b>{unlimited:,.0f} сум</b>\n\nНажав Подтвердить, вы принимаете <b>Условия использования</b>.",
+        "en": "<b>Review details</b>\n\nBot name: <b>{bot_username}</b>\nPlan: <b>{plan}</b>\nPhone: <b>{phone}</b>\nChannel ID: <b>{channel}</b>\nCard: <b>****{card}</b>\n\n<b>Prices:</b>\n  • Monthly: <b>{monthly:,.0f} UZS</b>\n  • Yearly: <b>{yearly:,.0f} UZS</b>\n  • Unlimited: <b>{unlimited:,.0f} UZS</b>\n\nBy pressing Confirm, you accept the <b>Terms of Service</b>."
     },
     "confirm_btn": {
         "uz": "Tasdiqlash",
@@ -749,9 +754,9 @@ TRANSLATIONS = {
         "en": "Hello, {name}!"
     },
     "cb_welcome": {
-        "uz": "<b>{bot_name}</b> botiga xush kelibsiz!",
-        "ru": "Добро пожаловать в бот <b>{bot_name}</b>!",
-        "en": "Welcome to <b>{bot_name}</b> bot!"
+        "uz": "<b>{bot_username}</b> botiga xush kelibsiz!",
+        "ru": "Добро пожаловать в бот <b>{bot_username}</b>!",
+        "en": "Welcome to <b>{bot_username}</b> bot!"
     },
     "cb_select_duration": {
         "uz": "<b>Telegram kanalga a'zo bo'lish uchun muddatni tanlang:</b>",

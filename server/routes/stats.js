@@ -220,7 +220,7 @@ router.get('/activity', async (req, res) => {
 
     // Get recent bots
     const recentBotsResult = await query(
-      `SELECT bot_name, status, created_at, user_id
+      `SELECT bot_username, status, created_at, user_id
        FROM client_bots
        ORDER BY created_at DESC
        LIMIT $1`,

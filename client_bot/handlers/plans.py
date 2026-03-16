@@ -225,7 +225,7 @@ async def purchase_plan(callback: CallbackQuery, bot, owner_id: int, plan_type: 
                 amount=Decimal(str(price)),
                 spend=config["duration"],  # "1 oy", "1 yil", "cheksiz"
                 admin_id=owner_id,
-                bot_name=bot_info.get('bot_name'),
+                bot_username=bot_info.get('bot_username'),
                 username=username
             )
 

@@ -1,4 +1,4 @@
-from aiogram import Router
+from aiogram import Router, Bot
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from app.states import BotCreationStates, BotEditStates
@@ -101,9 +101,9 @@ MSGS = {
         "en": "💰 Enter unlimited price (UZS, e.g.: 1000000):"
     },
     "summary": {
-        "uz": "📋 <b>Qayta ko'rib chiqing</b>\n\n🤖 Bot nomi: <b>{bot_name}</b>\n💰 Tarif: <b>{plan}</b>\n📱 Tel: <b>{phone}</b>\n📢 Kanal ID: <b>{channel}</b>\n💳 Karta: <b>****{card}</b>\n\n📊 <b>Narxlar:</b>\n  • Oylik: <b>{monthly:,.0f} so'm</b>\n  • Yillik: <b>{yearly:,.0f} so'm</b>\n  • Cheksiz: <b>{unlimited:,.0f} so'm</b>\n\nSiz quyidagi ✅ Tasdiqlash tugmasini bosish orqali <b>Terms of Service</b> shartlarni qabul qilasiz.",
-        "ru": "📋 <b>Проверьте данные</b>\n\n🤖 Название: <b>{bot_name}</b>\n💰 Тариф: <b>{plan}</b>\n📱 Тел: <b>{phone}</b>\n📢 ID канала: <b>{channel}</b>\n💳 Карта: <b>****{card}</b>\n\n📊 <b>Цены:</b>\n  • Месяц: <b>{monthly:,.0f} сум</b>\n  • Год: <b>{yearly:,.0f} сум</b>\n  • Безлимит: <b>{unlimited:,.0f} сум</b>\n\nНажав ✅ Подтвердить, вы принимаете <b>Условия использования</b>.",
-        "en": "📋 <b>Review details</b>\n\n🤖 Bot name: <b>{bot_name}</b>\n💰 Plan: <b>{plan}</b>\n📱 Phone: <b>{phone}</b>\n📢 Channel ID: <b>{channel}</b>\n💳 Card: <b>****{card}</b>\n\n📊 <b>Prices:</b>\n  • Monthly: <b>{monthly:,.0f} UZS</b>\n  • Yearly: <b>{yearly:,.0f} UZS</b>\n  • Unlimited: <b>{unlimited:,.0f} UZS</b>\n\nBy pressing ✅ Confirm, you accept the <b>Terms of Service</b>."
+        "uz": "📋 <b>Qayta ko'rib chiqing</b>\n\n🤖 Bot username: <b>@{bot_username}</b>\n💰 Tarif: <b>{plan}</b>\n📱 Tel: <b>{phone}</b>\n📢 Kanal ID: <b>{channel}</b>\n💳 Karta: <b>****{card}</b>\n\n📊 <b>Narxlar:</b>\n  • Oylik: <b>{monthly:,.0f} so'm</b>\n  • Yillik: <b>{yearly:,.0f} so'm</b>\n  • Cheksiz: <b>{unlimited:,.0f} so'm</b>\n\nSiz quyidagi ✅ Tasdiqlash tugmasini bosish orqali <b>Terms of Service</b> shartlarni qabul qilasiz.",
+        "ru": "📋 <b>Проверьте данные</b>\n\n🤖 Username бота: <b>@{bot_username}</b>\n💰 Тариф: <b>{plan}</b>\n📱 Тел: <b>{phone}</b>\n📢 ID канала: <b>{channel}</b>\n💳 Карта: <b>****{card}</b>\n\n📊 <b>Цены:</b>\n  • Месяц: <b>{monthly:,.0f} сум</b>\n  • Год: <b>{yearly:,.0f} сум</b>\n  • Безлимит: <b>{unlimited:,.0f} сум</b>\n\nНажав ✅ Подтвердить, вы принимаете <b>Условия использования</b>.",
+        "en": "📋 <b>Review details</b>\n\n🤖 Bot username: <b>@{bot_username}</b>\n💰 Plan: <b>{plan}</b>\n📱 Phone: <b>{phone}</b>\n📢 Channel ID: <b>{channel}</b>\n💳 Card: <b>****{card}</b>\n\n📊 <b>Prices:</b>\n  • Monthly: <b>{monthly:,.0f} UZS</b>\n  • Yearly: <b>{yearly:,.0f} UZS</b>\n  • Unlimited: <b>{unlimited:,.0f} UZS</b>\n\nBy pressing ✅ Confirm, you accept the <b>Terms of Service</b>."
     },
     "confirm_btn": {
         "uz": "✅ Tasdiqlash",
@@ -169,28 +169,10 @@ async def process_phone(message: Message, state: FSMContext) -> None:
     await state.update_data(phone=phone)
 
     await message.answer(
-        get_msg("enter_bot_name", lang),
+        get_msg("enter_token", lang),
         parse_mode="HTML",
         reply_markup=ReplyKeyboardRemove()
     )
-    await state.set_state(BotCreationStates.entering_bot_name)
-
-
-@router.message(BotCreationStates.entering_bot_name)
-async def process_bot_name(message: Message, state: FSMContext) -> None:
-    """Process bot name"""
-    data = await state.get_data()
-    lang = data.get("lang", "uz")
-
-    bot_name = message.text.strip()
-
-    if not bot_name or len(bot_name) < 2:
-        await message.answer(get_msg("bot_name_short", lang))
-        return
-
-    await state.update_data(bot_name=bot_name)
-
-    await message.answer(get_msg("enter_token", lang), parse_mode="HTML")
     await state.set_state(BotCreationStates.entering_bot_token)
 
 
@@ -213,7 +195,18 @@ async def process_bot_token(message: Message, state: FSMContext) -> None:
             await message.answer(get_msg("token_already_exists", lang))
             return
 
-    await state.update_data(bot_token=bot_token)
+    # Validate token and get bot username
+    test_bot = Bot(token=bot_token)
+    try:
+        bot_info = await test_bot.get_me()
+        bot_username = bot_info.username
+    except Exception as e:
+        await message.answer(get_msg("invalid_token", lang))
+        return
+    finally:
+        await test_bot.session.close()
+
+    await state.update_data(bot_token=bot_token, bot_username=bot_username)
 
     # Create keyboard with request_chat button
     from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -354,7 +347,7 @@ async def process_cheksiz_narx(message: Message, state: FSMContext) -> None:
 
     # Show summary
     summary = get_msg("summary", lang).format(
-        bot_name=data['bot_name'],
+        bot_username=data['bot_username'],
         plan=plan_name,
         phone=data['phone'],
         channel=data['channel_link'],

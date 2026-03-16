@@ -135,13 +135,26 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
         # Existing client - show main menu in their language
         lang = client.language or "uz"
 
+        start_date_str = client.plan_start_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_start_date', None) else "---"
+        end_date_str = client.plan_end_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_end_date', None) else "---"
+        balance_fmt = f"{client.balance or 0:,.0f}".replace(",", " ")
+        plan_str = getattr(client, 'plan_type', 'Free') or "Free"
+
         # Create inline keyboard with translations
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
-            [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+            #[InlineKeyboardButton(text=f"{_('btn_create_bot', lang)}", callback_data="create_bot")],
+            [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
+            [InlineKeyboardButton(text=f"{_('btn_buy_plan', lang)}", callback_data="buy_plan")],
         ])
 
-        await message.answer(f"👋 {_('welcome', lang, name=first_name)}", reply_markup=keyboard)
+        welcome_text = _('welcome', lang, 
+                         name=first_name, 
+                         balance=balance_fmt, 
+                         plan=plan_str.capitalize(),
+                         start_date=start_date_str,
+                         end_date=end_date_str)
+
+        await message.answer(welcome_text, reply_markup=keyboard, parse_mode="HTML")
 
 
 @router.message(Command("help"))
@@ -155,12 +168,90 @@ async def cmd_help(message: Message) -> None:
         lang = client.language if client else "uz"
 
     help_texts = {
-        "uz": "/start - Botni ishga tushirish\n/help - Yordam ko'rish\n/balance - Balansni ko'rish\n/lang - Tilni o'zgartirish",
-        "ru": "/start - Запустить бота\n/help - Помощь\n/balance - Проверить баланс\n/lang - Сменить язык",
-        "en": "/start - Start the bot\n/help - View help\n/balance - Check balance\n/lang - Change language"
+        "uz": (
+            "🛠 <b>Yordam bo'limi</b>\n\n"
+            "Bu bot orqali o'zingizning shaxsiy botlaringizni yaratishingiz va ularni boshqarishingiz mumkin.\n\n"
+            "<b>Asosiy buyruqlar:</b>\n"
+            "🔸 /start - Asosiy menyuni ochish\n"
+            "🔸 /help - Yordam xabarini ko'rish\n"
+            "🔸 /settings - Sozlamalar (Avto-to'lov va tilni o'zgartirish)\n"
+            "🔸 /balance - Shaxsiy balansingizni ko'rish\n"
+            "🔸 /lang - Bot tilini o'zgartirish\n\n"
+            "<b>💡 Avto-to'lov qanday ishlaydi?</b>\n"
+            "Avto-to'lov yoqilgan bo'lsa, /settings orqali, tarifizgiz tugashiga 1 kun qolganda hisobingizdan kerakli mablag' yechib olinadi va avtomatik ravishda 30 kunga uzaytiriladi.\n\n"
+            "💬 <i>Qo'shimcha savollar bo'lsa menejerga murojaat qiling.</i>"
+        ),
+        "ru": (
+            "🛠 <b>Помощь</b>\n\n"
+            "Через этого бота вы можете создавать и управлять своими ботами.\n\n"
+            "<b>Основные команды:</b>\n"
+            "🔸 /start - Открыть главное меню\n"
+            "🔸 /help - Открыть эту справку\n"
+            "🔸 /settings - Настройки (Автоплатеж и смена языка)\n"
+            "🔸 /balance - Проверить ваш баланс\n"
+            "🔸 /lang - Изменить язык бота\n\n"
+            "<b>💡 Как работает автоплатеж?</b>\n"
+            "Если автоплатеж включен (/settings), за 1 день до окончания вашего тарифа средства автоматически спишутся с баланса, и тариф продлится на 30 дней.\n\n"
+            "💬 <i>Если есть вопросы, пишите менеджеру.</i>"
+        ),
+        "en": (
+            "🛠 <b>Help section</b>\n\n"
+            "With this bot, you can create and manage your personal bots.\n\n"
+            "<b>Main commands:</b>\n"
+            "🔸 /start - Open main menu\n"
+            "🔸 /help - View this help message\n"
+            "🔸 /settings - Settings (Auto-renew and language)\n"
+            "🔸 /balance - Check your personal balance\n"
+            "🔸 /lang - Change bot language\n\n"
+            "<b>💡 How does Auto-renew work?</b>\n"
+            "If Auto-renew is enabled via /settings, 1 day before your plan expires, the bot will automatically deduct the required amount from your balance and extend it for 30 days.\n\n"
+            "💬 <i>For further questions, please contact support.</i>"
+        )
     }
 
-    await message.answer(help_texts.get(lang, help_texts["uz"]))
+    await message.answer(help_texts.get(lang, help_texts["uz"]), parse_mode="HTML")
+
+@router.message(Command("settings"))
+async def cmd_settings(message: Message) -> None:
+    """Settings command handler"""
+    user_id = message.from_user.id
+    
+    async with AsyncSessionLocal() as session:
+        client = await get_client_by_user_id(session, user_id)
+        if not client:
+            return
+            
+        lang = client.language if client else "uz"
+        
+        # Toggle options
+        auto_renew_status = "🟢 Yoqilgan" if client.oylik_obuna else "🔴 O'chirilgan"
+        auto_renew_ru = "🟢 Включено" if client.oylik_obuna else "🔴 Отключено"
+        auto_renew_en = "🟢 Enabled" if client.oylik_obuna else "🔴 Disabled"
+        
+        # Labels
+        settings_title = {
+            "uz": "⚙️ <b>Sozlamalar</b>\n\nQuyidagi sozlamalarni o'zgartirishingiz mumkin:",
+            "ru": "⚙️ <b>Настройки</b>\n\nВы можете изменить следующие настройки:",
+            "en": "⚙️ <b>Settings</b>\n\nHere you can change your settings:"
+        }
+        
+        btn_auto_renew = {
+            "uz": f"🔄 Avto-to'lov: {auto_renew_status}",
+            "ru": f"🔄 Автоплатеж: {auto_renew_ru}",
+            "en": f"🔄 Auto-renew: {auto_renew_en}"
+        }
+        btn_lang = {
+            "uz": "🌐 Tilni o'zgartirish",
+            "ru": "🌐 Изменить язык",
+            "en": "🌐 Change language"
+        }
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=btn_auto_renew.get(lang, btn_auto_renew["uz"]), callback_data="toggle_auto_renew")],
+            [InlineKeyboardButton(text=btn_lang.get(lang, btn_lang["uz"]), callback_data="cmd_lang_trigger")]
+        ])
+        
+        await message.answer(settings_title.get(lang, settings_title["uz"]), parse_mode="HTML", reply_markup=keyboard)
 
 
 @router.message(Command("lang"))
@@ -371,7 +462,7 @@ async def show_bots_list(callback: CallbackQuery):
 
             # Get all bots with owner info
             bots_result = await session.execute(text("""
-                SELECT cb.bot_name, cb.bot_username, cb.user_id, c.username, cb.channel_id, cb.status, cb.created_at
+                SELECT cb.bot_username, cb.user_id, c.username, cb.channel_id, cb.status, cb.created_at
                 FROM client_bots cb
                 LEFT JOIN clients c ON cb.user_id = c.user_id
                 ORDER BY cb.created_at DESC
@@ -382,7 +473,7 @@ async def show_bots_list(callback: CallbackQuery):
                 bot_dict = dict(bot._mapping)
                 ws.append([
                     idx,
-                    bot_dict.get('bot_name') or 'N/A',
+                    f"@{bot_dict.get('bot_username')}" if bot_dict.get('bot_username') else "N/A",
                     bot_dict.get('bot_username') or 'N/A',
                     bot_dict.get('user_id'),
                     bot_dict.get('username') or 'N/A',
@@ -842,7 +933,7 @@ async def show_client_bots(callback: CallbackQuery):
     async with AsyncSessionLocal() as session:
         try:
             bots_query = text("""
-                SELECT bot_name, status, channel_id, created_at
+                SELECT bot_username, status, channel_id, created_at
                 FROM client_bots
                 WHERE user_id = :user_id
                 ORDER BY created_at DESC
@@ -858,7 +949,7 @@ async def show_client_bots(callback: CallbackQuery):
                 for idx, bot in enumerate(bots, 1):
                     bot_dict = dict(bot._mapping)
                     status_emoji = "✅" if bot_dict.get('status') == 'active' else "⏸"
-                    msg += f"{idx}. {status_emoji} <b>{bot_dict.get('bot_name')}</b>\n"
+                    msg += f"{idx}. {status_emoji} <b>@{bot_dict.get('bot_username')}</b>\n"
                     msg += f"   Kanal ID: {bot_dict.get('channel_id', 'N/A')}\n\n"
 
             back_kb = InlineKeyboardMarkup(inline_keyboard=[

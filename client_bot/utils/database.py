@@ -55,15 +55,37 @@ async def get_bot_info(session, bot_token: str):
     return dict(bot_info._mapping) if bot_info else None
 
 
-async def get_client_plan(session, owner_id: int):
-    """Get client plan type from clients table"""
-    query = text("SELECT plan_type FROM clients WHERE user_id = :user_id")
+async def get_client_plan_and_ads(session, owner_id: int):
+    """Get client plan type and ads switch setting"""
+    import datetime
+    
+    query = text("SELECT plan_type, plan_end_date, switch_ads FROM clients WHERE user_id = :user_id")
     result = await session.execute(query, {"user_id": owner_id})
     client = result.fetchone()
 
     if client:
-        return client[0] or 'free'
-    return 'free'
+        plan_type = client[0] or 'free'
+        plan_end_date = client[1]
+        switch_ads = client[2]
+        
+        # If standard/biznes but expired, treat as free and ads forced ON
+        if plan_type in ["standard", "biznes"] and plan_end_date:
+            now_tz = datetime.datetime.now(datetime.timezone.utc)
+            if plan_end_date.tzinfo is None:
+                plan_end_date = plan_end_date.replace(tzinfo=datetime.timezone.utc)
+                
+            if plan_end_date <= now_tz:
+                return 'free', True
+                
+        return plan_type, switch_ads
+        
+    return 'free', True
+
+
+async def get_client_plan(session, owner_id: int):
+    """Legacy wrapper for plan only"""
+    plan_type, _ = await get_client_plan_and_ads(session, owner_id)
+    return plan_type
 
 
 async def get_client_language(session, owner_id: int) -> str:

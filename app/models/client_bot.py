@@ -9,7 +9,6 @@ class ClientBot(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, index=True, nullable=False)  # Removed ForeignKey
-    bot_name = Column(String(255), nullable=False)
     bot_token = Column(String(255), nullable=False, unique=True)
     bot_username = Column(String(255), nullable=True)  # @username of the bot
     channel_id = Column(BigInteger, nullable=True)  # Changed from channel_link to channel_id

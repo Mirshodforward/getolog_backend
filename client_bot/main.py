@@ -125,13 +125,13 @@ async def save_bot_metadata(bot: Bot, bot_token: str, owner_id: int):
         logger.error(f"Error saving bot metadata: {e}")
 
 
-async def start_client_bot(bot_token: str, bot_name: str, owner_id: int):
+async def start_client_bot(bot_token: str, bot_username: str, owner_id: int):
     """
     Client bot ni ishga tushirish
 
     Args:
         bot_token: Telegram bot token
-        bot_name: Bot nomi
+        bot_username: Bot nomi
         owner_id: Bot egasining telegram ID (admin_id sifatida ishlatiladi)
     """
     global _stop_event, _bot_token_global
@@ -140,7 +140,7 @@ async def start_client_bot(bot_token: str, bot_name: str, owner_id: int):
     
     try:
         logger.info(f"Client bot ishga tushurilmoqda...")
-        logger.info(f"Bot nomi: {bot_name}")
+        logger.info(f"Bot nomi: {bot_username}")
         logger.info(f"Owner ID: {owner_id}")
         logger.info(f"Token: {bot_token[:20]}...")
 
@@ -175,14 +175,14 @@ async def start_client_bot(bot_token: str, bot_name: str, owner_id: int):
                 logger.warning("Bot info not found in database!")
 
         # Register all handlers
-        register_all_handlers(dp, bot, owner_id, bot_name, bot_token, bot_db_id)
+        register_all_handlers(dp, bot, owner_id, bot_username, bot_token, bot_db_id)
         logger.info("All handlers registered")
 
-        logger.info(f"Bot '{bot_name}' ready for polling...")
+        logger.info(f"Bot '{bot_username}' ready for polling...")
 
         # Start scheduler
         scheduler.start()
-        logger.info(f"Scheduler started for bot '{bot_name}'")
+        logger.info(f"Scheduler started for bot '{bot_username}'")
 
         # Start stop signal checker as background task
         stop_checker_task = asyncio.create_task(check_stop_signal())
@@ -190,15 +190,24 @@ async def start_client_bot(bot_token: str, bot_name: str, owner_id: int):
 
         # Custom polling loop with stop signal support
         async def custom_polling():
-            """Custom polling that can be stopped gracefully"""
-            try:
-                await dp.start_polling(
-                    bot,
-                    allowed_updates=dp.resolve_used_update_types(),
-                    handle_signals=False  # We handle signals manually
-                )
-            except asyncio.CancelledError:
-                logger.info("Polling cancelled")
+            """Custom polling that can be stopped gracefully and resumes on temporary errors"""
+            while not _stop_event.is_set():
+                try:
+                    await dp.start_polling(
+                        bot,
+                        allowed_updates=dp.resolve_used_update_types(),
+                        handle_signals=False  # We handle signals manually
+                    )
+                    # If start_polling stops on its own naturally:
+                    break
+                except asyncio.CancelledError:
+                    logger.info("Polling cancelled")
+                    break
+                except Exception as loop_e:
+                    logger.error(f"Polling crashed: {loop_e}. Retrying in 5 seconds...", exc_info=True)
+                    if _stop_event.is_set():
+                        break
+                    await asyncio.sleep(5)
 
         # Start polling task
         polling_task = asyncio.create_task(custom_polling())
@@ -249,17 +258,17 @@ async def start_client_bot(bot_token: str, bot_name: str, owner_id: int):
         except Exception as db_error:
             logger.error(f"Error updating bot status: {db_error}")
         
-        logger.info(f"🏁 Bot '{bot_name}' fully stopped")
+        logger.info(f"🏁 Bot '{bot_username}' fully stopped")
 
 
-def run_bot(bot_token: str, bot_name: str, owner_id: int):
+def run_bot(bot_token: str, bot_username: str, owner_id: int):
     """Run the bot (blocking call)"""
     logger.info("=" * 50)
     logger.info("CLIENT BOT STARTED")
     logger.info("=" * 50)
 
     try:
-        asyncio.run(start_client_bot(bot_token, bot_name, owner_id))
+        asyncio.run(start_client_bot(bot_token, bot_username, owner_id))
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:
@@ -268,11 +277,11 @@ def run_bot(bot_token: str, bot_name: str, owner_id: int):
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        logger.error("Ishlatilish: python -m client_bot.main <bot_token> <bot_name> <owner_id>")
+        logger.error("Ishlatilish: python -m client_bot.main <bot_token> <bot_username> <owner_id>")
         sys.exit(1)
 
     bot_token = sys.argv[1]
-    bot_name = sys.argv[2]
+    bot_username = sys.argv[2]
     owner_id = int(sys.argv[3])
 
-    run_bot(bot_token, bot_name, owner_id)
+    run_bot(bot_token, bot_username, owner_id)

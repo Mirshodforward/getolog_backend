@@ -50,7 +50,7 @@ router.get('/all', async (req, res) => {
     botsSheet.columns = [
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Owner ID', key: 'user_id', width: 15 },
-      { header: 'Bot Name', key: 'bot_name', width: 20 },
+      { header: 'Bot Name', key: 'bot_username', width: 20 },
       { header: 'Channel ID', key: 'channel_id', width: 15 },
       { header: 'Status', key: 'status', width: 12 },
       { header: 'Oy Narx', key: 'oy_narx', width: 12 },
@@ -359,7 +359,7 @@ router.get('/bots', async (req, res) => {
     sheet.columns = [
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Owner ID', key: 'user_id', width: 15 },
-      { header: 'Bot Name', key: 'bot_name', width: 25 },
+      { header: 'Bot Name', key: 'bot_username', width: 25 },
       { header: 'Bot Username', key: 'bot_username', width: 20 },
       { header: 'Channel ID', key: 'channel_id', width: 15 },
       { header: 'Card Number', key: 'card_number', width: 20 },
@@ -423,7 +423,7 @@ router.get('/deleted-bots', async (req, res) => {
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Original Bot ID', key: 'original_bot_id', width: 15 },
       { header: 'Owner ID', key: 'user_id', width: 15 },
-      { header: 'Bot Name', key: 'bot_name', width: 25 },
+      { header: 'Bot Name', key: 'bot_username', width: 25 },
       { header: 'Bot Username', key: 'bot_username', width: 20 },
       { header: 'Channel ID', key: 'channel_id', width: 15 },
       { header: 'Card Number', key: 'card_number', width: 20 },

@@ -34,13 +34,13 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        logger.error("Ishlatilish: python client_bot_main.py <bot_token> <bot_name> <owner_id>")
+        logger.error("Ishlatilish: python client_bot_main.py <bot_token> <bot_username> <owner_id>")
         sys.exit(1)
 
     bot_token = sys.argv[1]
-    bot_name = sys.argv[2]
+    bot_username = sys.argv[2]
     owner_id = int(sys.argv[3])
 
     # Import and run the bot from the modular package
     from client_bot.main import run_bot
-    run_bot(bot_token, bot_name, owner_id)
+    run_bot(bot_token, bot_username, owner_id)

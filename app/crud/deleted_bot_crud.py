@@ -17,7 +17,7 @@ async def create_deleted_bot(session: AsyncSession, bot: ClientBot, users_count:
     deleted_bot = DeletedBot(
         original_bot_id=bot.id,
         user_id=bot.user_id,
-        bot_name=bot.bot_name,
+        bot_username=bot.bot_username,
         bot_token=bot.bot_token,
         bot_username=bot.bot_username,
         channel_id=bot.channel_id,
