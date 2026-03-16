@@ -1346,7 +1346,7 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
     with open(log_file, "a", encoding="utf-8") as log:
         log.write(f"\n{'='*60}\n")
         log.write(f"Bot: {data['bot_username']} | Owner: {user_id}\n")
-        log.write(f"Time: {datetime.now()}\n")
+        log.write(f"Time: {datetime.datetime.now()}\n")
         log.write(f"{'='*60}\n")
 
     # Open log file for subprocess output
