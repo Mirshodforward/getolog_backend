@@ -86,8 +86,8 @@ async def set_language_callback(callback: CallbackQuery) -> None:
 
         # Create inline keyboard with translations
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
-            [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+            
+            [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
         ])
 
         balance = float(client.balance) if client and client.balance else 0
@@ -1237,23 +1237,33 @@ async def back_to_main_callback(callback: CallbackQuery) -> None:
         client = await get_client_by_user_id(session, user_id)
         lang = client.language if client else "uz"
 
-    welcome_msgs = {
-        "uz": f"👋 Xush kelibsiz, {first_name}!",
-        "ru": f"👋 Добро пожаловать, {first_name}!",
-        "en": f"👋 Welcome, {first_name}!"
-    }
-
-    create_bot_text = {"uz": "🤖 Bot yaratish", "ru": "🤖 Создать бота", "en": "🤖 Create Bot"}
-    my_bots_text = {"uz": "📋 Mening botlarim", "ru": "📋 Мои боты", "en": "📋 My Bots"}
+        if client:
+            start_date_str = client.plan_start_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_start_date', None) else "---"
+            end_date_str = client.plan_end_date.strftime('%Y-%m-%d %H:%M') if getattr(client, 'plan_end_date', None) else "---"
+            balance_fmt = f"{client.balance or 0:,.0f}".replace(",", " ")
+            plan_str = getattr(client, 'plan_type', 'Free') or "Free"
+        else:
+            start_date_str = "---"
+            end_date_str = "---"
+            balance_fmt = "0"
+            plan_str = "Free"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=create_bot_text.get(lang, create_bot_text["uz"]), callback_data="create_bot")],
-        [InlineKeyboardButton(text=my_bots_text.get(lang, my_bots_text["uz"]), callback_data="my_bots")],
+        [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
+        [InlineKeyboardButton(text=f"{_('btn_buy_plan', lang)}", callback_data="buy_plan")],
     ])
 
+    welcome_text = _('welcome', lang, 
+                     name=first_name, 
+                     balance=balance_fmt, 
+                     plan=plan_str.capitalize(),
+                     start_date=start_date_str,
+                     end_date=end_date_str)
+
     await callback.message.edit_text(
-        welcome_msgs.get(lang, welcome_msgs["uz"]),
-        reply_markup=keyboard
+        welcome_text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
     )
     await callback.answer()
 
@@ -1482,7 +1492,6 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
     success_msg = (
         f"{success_titles.get(lang, success_titles['uz'])}\n\n"
         f"{bot_username_label.get(lang, bot_username_label['uz'])}: <b>@{data['bot_username']}</b>\n"
-        f"👤 Username: <b>@{bot_username or unknown.get(lang, 'Unknown')}</b>\n"
         f"{plan_label.get(lang, plan_label['uz'])}: <b>{plan_names.get(lang, plan_names['uz']).get(data['plan'], 'Free')}</b>\n"
         f"{status_label.get(lang, status_label['uz'])}: <b>{status_active.get(lang, 'Active')}</b>\n"
     )

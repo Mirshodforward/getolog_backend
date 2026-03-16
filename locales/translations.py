@@ -903,9 +903,14 @@ def get_text(key: str, lang: str = "uz", **kwargs) -> str:
 
     # Format text with provided kwargs
     if kwargs:
+        # Instead of failing silently on missing kwargs, we use a custom formatter 
+        # or just format what we can and leave missing keys as they are.
+        class SafeDict(dict):
+            def __missing__(self, key):
+                return "{" + key + "}"
         try:
-            text = text.format(**kwargs)
-        except KeyError:
+            text = text.format_map(SafeDict(**kwargs))
+        except Exception:
             pass
 
     return text

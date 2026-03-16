@@ -142,7 +142,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
         # Create inline keyboard with translations
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            #[InlineKeyboardButton(text=f"{_('btn_create_bot', lang)}", callback_data="create_bot")],
+            
             [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
             [InlineKeyboardButton(text=f"{_('btn_buy_plan', lang)}", callback_data="buy_plan")],
         ])
@@ -155,6 +155,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
                          end_date=end_date_str)
 
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="HTML")
+
 
 
 @router.message(Command("help"))
