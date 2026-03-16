@@ -90,10 +90,29 @@ async def set_language_callback(callback: CallbackQuery) -> None:
             [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
         ])
 
+        balance = float(client.balance) if client and client.balance else 0
+        balance_fmt = f"{balance:,.0f}".replace(',', ' ')
+        plan_str = client.plan_type or "Free"
+
+        def format_dt(dt):
+            if not dt: return "N/A"
+            return dt.strftime('%d.%m.%Y %H:%M')
+
+        start_date_str = format_dt(client.plan_start_date) if client else "N/A"
+        end_date_str = format_dt(client.plan_end_date) if client else "N/A"
+
+        welcome_text = _('welcome', lang,
+                         name=first_name,
+                         balance=balance_fmt,
+                         plan=plan_str.capitalize(),
+                         start_date=start_date_str,
+                         end_date=end_date_str)
+
         await callback.message.edit_text(
             f"✅ {lang_names.get(lang, lang)}\n\n"
-            f"👋 {_('welcome', lang, name=first_name)}",
-            reply_markup=keyboard
+            f"{welcome_text}",
+            reply_markup=keyboard,
+            parse_mode="HTML"
         )
     
     await callback.answer()
@@ -117,8 +136,8 @@ async def select_initial_plan_free(callback: CallbackQuery) -> None:
     
     # Show main menu
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
-        [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+       
+        [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
     ])
     
     msg_plan = {
@@ -151,8 +170,8 @@ async def select_initial_plan_standard(callback: CallbackQuery) -> None:
     
     # Show main menu
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🤖 {_('btn_create_bot', lang)}", callback_data="create_bot")],
-        [InlineKeyboardButton(text=f"📋 {_('btn_my_bots', lang)}", callback_data="my_bots")],
+     
+        [InlineKeyboardButton(text=f"{_('btn_my_bots', lang)}", callback_data="my_bots")],
     ])
     
     msg_plan = {
@@ -257,8 +276,9 @@ async def create_bot_callback(callback: CallbackQuery, state: FSMContext) -> Non
             "en": f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} UZS, 5 bots)"
         }
     }
-    
+
     # Add plan buttons
+    keyboard_buttons = []
     keyboard_buttons.append([
         InlineKeyboardButton(text=plans_info["free"][lang], callback_data="plan_free"),
         InlineKeyboardButton(text=plans_info["standard"][lang], callback_data="plan_standard")
@@ -347,6 +367,7 @@ async def select_premium_plan(callback: CallbackQuery, state: FSMContext) -> Non
     # If balance is enough - continue directly
     await state.update_data(plan="premium")
 
+    from app.handlers.phone_helper import ask_for_phone_or_token
     await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 
@@ -395,6 +416,7 @@ async def select_standard_plan(callback: CallbackQuery, state: FSMContext) -> No
     # If balance is enough - continue directly
     await state.update_data(plan="standard")
 
+    from app.handlers.phone_helper import ask_for_phone_or_token
     await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 
@@ -443,6 +465,7 @@ async def select_biznes_plan(callback: CallbackQuery, state: FSMContext) -> None
     # If balance is enough - continue directly
     await state.update_data(plan="biznes")
 
+    from app.handlers.phone_helper import ask_for_phone_or_token
     await ask_for_phone_or_token(callback, state, lang, client)
     await callback.answer()
 

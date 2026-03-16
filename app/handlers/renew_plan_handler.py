@@ -21,10 +21,19 @@ async def show_renew_plans(callback: CallbackQuery):
         lang = client.language or "uz"
         current_balance = float(client.balance) if client.balance else 0
 
+    topup_text = {
+        "uz": "💳 Balansni to'ldirish", 
+        "ru": "💳 Пополнить баланс", 
+        "en": "💳 Top up balance"
+    }
+
+    back_text = {"uz": "🔙 Orqaga", "ru": "🔙 Назад", "en": "🔙 Back"}
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"📘 Standard ({PLAN_CONFIG['standard']['price']:,} so'm) - 1 oy", callback_data="renew_plan_standard")],
         [InlineKeyboardButton(text=f"🎯 Biznes ({PLAN_CONFIG['biznes']['price']:,} so'm) - 1 oy", callback_data="renew_plan_biznes")],
-        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="start_menu")]
+        [InlineKeyboardButton(text=topup_text.get(lang, topup_text["uz"]), callback_data="topup_balance")],
+        [InlineKeyboardButton(text=back_text.get(lang, back_text["uz"]), callback_data="back_to_main")]
     ])
     
     texts = {
