@@ -88,12 +88,12 @@ async def process_renewal(callback: CallbackQuery, plan_name: str):
             client.plan_end_date = end_date + datetime.timedelta(days=30)
 
         # Log spending
-        await spending_crud.add_spending(
+        await spending_crud.create_spending(
             session=session,
             role='client',
             user_id=user_id,
             amount=plan_price,
-            spend_type=f"Tarif xarid ({plan_name})",
+            spend=f"Tarif xarid ({plan_name})",
             bot_username=None,
             username=callback.from_user.username
         )
