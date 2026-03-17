@@ -421,23 +421,7 @@ router.get('/comprehensive', async (req, res) => {
         return acc;
       }, {});
 
-      // Client subscription purchases by type
-      const clientSpendingByTypeResult = await query(`
-        SELECT
-          spend as type,
-          COUNT(*) as count,
-          COALESCE(SUM(amount), 0) as total
-        FROM spendings
-        WHERE role = 'client'
-        GROUP BY spend
-      `);
-      const clientSpendingByType = clientSpendingByTypeResult.rows.reduce((acc, row) => {
-        acc[row.type] = {
-          count: parseInt(row.count) || 0,
-          amount: parseFloat(row.total) || 0
-        };
-        return acc;
-      }, {});
+
 
       // User subscription purchases by type
     const userSpendingByTypeResult = await query(`

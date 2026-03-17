@@ -134,11 +134,20 @@ async def show_welcome_message(message: Message, owner_id: int, bot_username: st
     client_plan = 'free'
     ads_enabled = True
 
+    user_info = None
     async with AsyncSessionLocal() as session:
         try:
             bot_info = await get_bot_info(session, bot_token)
             client_plan, ads_enabled = await get_client_plan_and_ads(session, owner_id)
             logger.info(f"Client plan: {client_plan}, Ads Enabled: {ads_enabled}")
+            
+            if bot_info:
+                from sqlalchemy import text
+                user_query = text("SELECT balance, duration, plan_start_date, plan_end_date FROM users WHERE user_id = :user_id AND bot_id = :bot_id")
+                user_result = await session.execute(user_query, {"user_id": message.from_user.id, "bot_id": bot_info['id']})
+                user_record = user_result.fetchone()
+                if user_record:
+                    user_info = dict(user_record._mapping)
         except Exception as db_error:
             logger.error(f"Database error: {db_error}")
 
@@ -152,7 +161,12 @@ async def show_welcome_message(message: Message, owner_id: int, bot_username: st
             "monthly": "Oylik",
             "yearly": "Yillik",
             "unlimited": "Cheksiz",
-            "topup": "Hisobni to'ldirish"
+            "topup": "Hisobni to'ldirish",
+            "balance": "Balans",
+            "plan": "Joriy tarif",
+            "start_date": "Ulanish sanasi",
+            "end_date": "Tugash sanasi",
+            "none": "Yo'q"
         },
         "ru": {
             "greeting": f"Привет, {message.from_user.first_name or 'User'}!",
@@ -162,7 +176,12 @@ async def show_welcome_message(message: Message, owner_id: int, bot_username: st
             "monthly": "Месячная",
             "yearly": "Годовая",
             "unlimited": "Неограниченная",
-            "topup": "Пополнить баланс"
+            "topup": "Пополнить баланс",
+            "balance": "Баланс",
+            "plan": "Текущий тариф",
+            "start_date": "Дата подключения",
+            "end_date": "Дата окончания",
+            "none": "Нет"
         },
         "en": {
             "greeting": f"Hello, {message.from_user.first_name or 'User'}!",
@@ -172,7 +191,13 @@ async def show_welcome_message(message: Message, owner_id: int, bot_username: st
             "monthly": "Monthly",
             "yearly": "Yearly",
             "unlimited": "Unlimited",
-            "topup": "Top up balance"
+            "topup": "Top up balance",
+            "balance": "Balance",
+            "plan": "Current plan",
+            "start_date": "Connection date",
+            "end_date": "End date",
+            "none": "None",
+            "unlimited": "Unlimited"
         }
     }
 
@@ -181,6 +206,23 @@ async def show_welcome_message(message: Message, owner_id: int, bot_username: st
     # Build welcome message
     welcome_msg = f"{texts['greeting']}\n\n"
     welcome_msg += f"{texts['welcome']}\n\n"
+    
+    if user_info:
+        import datetime
+        bal = user_info.get('balance') or 0
+        curr_plan = user_info.get('duration') or texts['none']
+        st_date = user_info.get('plan_start_date')
+        en_date = user_info.get('plan_end_date')
+        
+        st_str = st_date.strftime("%d.%m.%Y %H:%M") if isinstance(st_date, datetime.datetime) else texts['none']
+        en_str = en_date.strftime("%d.%m.%Y %H:%M") if isinstance(en_date, datetime.datetime) else texts['none']
+        if str(curr_plan).lower() in ["cheksiz", "unlimited", "неограниченная"]:
+            en_str = "--:--"
+            
+        welcome_msg += f"💰 <b>{texts['balance']}:</b> {float(bal):,.0f} so'm\n"
+        welcome_msg += f"📦 <b>{texts['plan']}:</b> {curr_plan}\n"
+        welcome_msg += f"📅 <b>{texts['start_date']}:</b> {st_str}\n"
+        welcome_msg += f"⏳ <b>{texts['end_date']}:</b> {en_str}\n\n"
 
     # Create plan selection keyboard
     keyboard_buttons = []
