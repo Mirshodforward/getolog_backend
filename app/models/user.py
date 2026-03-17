@@ -22,4 +22,6 @@ class User(Base):
     invite_link = Column(String(255), nullable=True)
     terms = Column(Integer, nullable=True)
     language = Column(String(10), default="uz")
+    plan_start_date = Column(DateTime(timezone=True), nullable=True)
+    plan_end_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

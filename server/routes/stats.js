@@ -10,11 +10,12 @@ router.get('/global', async (req, res) => {
     const totalClientsResult = await query('SELECT COUNT(*) as count FROM clients');
     const totalClients = parseInt(totalClientsResult.rows[0].count) || 0;
 
-    // Get premium clients
-    const premiumClientsResult = await query(
-      "SELECT COUNT(*) as count FROM clients WHERE plan_type = 'premium'"
-    );
-    const premiumClients = parseInt(premiumClientsResult.rows[0].count) || 0;
+    // Get plans
+    const standartClientsResult = await query("SELECT COUNT(*) as count FROM clients WHERE plan_type = 'standart'");
+    const standartClients = parseInt(standartClientsResult.rows[0].count) || 0;
+    
+    const biznesClientsResult = await query("SELECT COUNT(*) as count FROM clients WHERE plan_type = 'biznes'");
+    const biznesClients = parseInt(biznesClientsResult.rows[0].count) || 0;
 
     // Get total bots
     const totalBotsResult = await query('SELECT COUNT(*) as count FROM client_bots');
@@ -44,7 +45,7 @@ router.get('/global', async (req, res) => {
 
     // Get total revenue
     const totalRevenueResult = await query(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE role = 'plan_purchase' AND status = 'approved'"
+      "SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE role IN ('client_topup', 'plan_purchase') AND status = 'approved'"
     );
     const totalRevenue = parseFloat(totalRevenueResult.rows[0].total) || 0;
 
@@ -69,8 +70,9 @@ router.get('/global', async (req, res) => {
       data: {
         clients: {
           total: totalClients,
-          premium: premiumClients,
-          free: totalClients - premiumClients,
+          standart: standartClients,
+          biznes: biznesClients,
+          free: totalClients - (standartClients + biznesClients),
         },
         bots: {
           total: totalBots,
@@ -282,17 +284,17 @@ router.get('/comprehensive', async (req, res) => {
     `);
     const clientsWithBots = parseInt(clientsWithBotsResult.rows[0].count) || 0;
 
-    // Free plan clients (among bot creators)
-    const freeBotsResult = await query(`
-      SELECT COUNT(*) as count FROM client_bots WHERE status = 'free' OR status IS NULL
-    `);
-    const freeBots = parseInt(freeBotsResult.rows[0].count) || 0;
+    // Free plan clients
+      const freeClientsResult = await query(`SELECT COUNT(*) as count FROM clients WHERE plan_type = 'free' OR plan_type IS NULL`);
+      const freeClients = parseInt(freeClientsResult.rows[0].count) || 0;
 
-    // Premium/Active plan clients (among bot creators)
-    const premiumBotsResult = await query(`
-      SELECT COUNT(*) as count FROM client_bots WHERE status = 'active'
-    `);
-    const premiumBots = parseInt(premiumBotsResult.rows[0].count) || 0;
+      // Standart plan clients
+      const standartClientsResult = await query(`SELECT COUNT(*) as count FROM clients WHERE plan_type = 'standart'`);
+      const standartClients = parseInt(standartClientsResult.rows[0].count) || 0;
+
+      // Biznes plan clients
+      const biznesClientsResult = await query(`SELECT COUNT(*) as count FROM clients WHERE plan_type = 'biznes'`);
+      const biznesClients = parseInt(biznesClientsResult.rows[0].count) || 0;
 
     // Active/Running bots - use status field instead
     const activeBotCount = await query(`
@@ -348,7 +350,7 @@ router.get('/comprehensive', async (req, res) => {
     const todayClientTopupsResult = await query(`
       SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
       FROM transactions 
-      WHERE role = 'plan_purchase' AND status = 'approved' AND DATE(created_at) = $1
+      WHERE role IN ('client_topup', 'plan_purchase') AND status = 'approved' AND DATE(created_at) = $1
     `, [today]);
     const todayClientTopups = {
       count: parseInt(todayClientTopupsResult.rows[0].count) || 0,
@@ -359,7 +361,7 @@ router.get('/comprehensive', async (req, res) => {
     const totalClientRevenueResult = await query(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM transactions 
-      WHERE role = 'plan_purchase' AND status = 'approved'
+      WHERE role IN ('client_topup', 'plan_purchase') AND status = 'approved'
     `);
     const totalClientRevenue = parseFloat(totalClientRevenueResult.rows[0].total) || 0;
 
@@ -401,7 +403,43 @@ router.get('/comprehensive', async (req, res) => {
       total: parseFloat(clientSpendingResult.rows[0].total) || 0
     };
 
-    // User subscription purchases by type
+    // Client subscription purchases by type
+      const clientSpendingByTypeResult = await query(`
+        SELECT
+          spend as type,
+          COUNT(*) as count,
+          COALESCE(SUM(amount), 0) as total
+        FROM spendings
+        WHERE role = 'client'
+        GROUP BY spend
+      `);
+      const clientSpendingByType = clientSpendingByTypeResult.rows.reduce((acc, row) => {
+        acc[row.type] = {
+          count: parseInt(row.count) || 0,
+          amount: parseFloat(row.total) || 0
+        };
+        return acc;
+      }, {});
+
+      // Client subscription purchases by type
+      const clientSpendingByTypeResult = await query(`
+        SELECT
+          spend as type,
+          COUNT(*) as count,
+          COALESCE(SUM(amount), 0) as total
+        FROM spendings
+        WHERE role = 'client'
+        GROUP BY spend
+      `);
+      const clientSpendingByType = clientSpendingByTypeResult.rows.reduce((acc, row) => {
+        acc[row.type] = {
+          count: parseInt(row.count) || 0,
+          amount: parseFloat(row.total) || 0
+        };
+        return acc;
+      }, {});
+
+      // User subscription purchases by type
     const userSpendingByTypeResult = await query(`
       SELECT
         spend,
@@ -459,10 +497,11 @@ router.get('/comprehensive', async (req, res) => {
       success: true,
       data: {
         clients: {
-          total: totalClients,
-          withBots: clientsWithBots,
-          freeBots: freeBots,
-          premiumBots: premiumBots,
+            total: totalClients,
+            withBots: clientsWithBots,
+            freeClients: freeClients,
+            standartClients: standartClients,
+            biznesClients: biznesClients,
           todayNew: todayClients,
           lastFive: lastClientsResult.rows
         },
@@ -489,11 +528,12 @@ router.get('/comprehensive', async (req, res) => {
         // Spending statistics
         spendings: {
           clients: {
-            total: clientSpending.count,
-            amount: clientSpending.total,
-            todayCount: todayClientSpending.count,
-            todayAmount: todayClientSpending.total
-          },
+              total: clientSpending.count,
+              amount: clientSpending.total,
+              todayCount: todayClientSpending.count,
+              todayAmount: todayClientSpending.total,
+              byType: clientSpendingByType
+            },
           users: {
             total: totalUserSpendingCount,
             amount: totalUserSpendingAmount,

@@ -317,7 +317,7 @@ async def plan_monitor_daemon(bot: Bot):
         try:
             async with AsyncSessionLocal() as session:
                 # Faqat 'free' emas bo'lgan, end_date bor mijozlarni olamiz
-                stmt = select(Client).where(Client.plan_type.in_(["standard", "biznes"]), Client.plan_end_date.isnot(None))
+                stmt = select(Client).where(Client.plan_type.in_(["standard", "standart", "biznes"]), Client.plan_end_date.isnot(None))
                 result = await session.execute(stmt)
                 clients = result.scalars().all()
                 

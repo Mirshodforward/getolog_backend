@@ -513,7 +513,7 @@ async def my_bots_callback(callback: CallbackQuery) -> None:
     # Determine limits
     current_plan = "free"
     # Check plan validity
-    if client and client.plan_type in ["standard", "biznes"]:
+    if client and client.plan_type in ["standard", "standart", "biznes"]:
         now_tz = datetime.datetime.now(datetime.timezone.utc)
         if client.plan_end_date:
             end_date = client.plan_end_date
@@ -879,7 +879,7 @@ async def bot_toggle_ads_callback(callback: CallbackQuery, state: FSMContext) ->
         
         # Check plan
         has_plan = False
-        if client.plan_type in ["standard", "biznes"]:
+        if getattr(client, "plan_type", None) in ["standard", "standart", "biznes"]:
             if client.plan_end_date:
                 now_tz = datetime.datetime.now(datetime.timezone.utc)
                 end_date = client.plan_end_date
@@ -903,7 +903,33 @@ async def bot_toggle_ads_callback(callback: CallbackQuery, state: FSMContext) ->
         client.switch_ads = not client.switch_ads
         await session.commit()
         
-    await bot_edit_callback(callback, state)
+        # Redraw keyboard manually
+        ads_status = "🟢 Yoqilgan" if client.switch_ads else "🔴 O'chirilgan"
+        ads_status_ru = "🟢 Включена" if client.switch_ads else "🔴 Отключена"
+        ads_status_en = "🟢 Enabled" if client.switch_ads else "🔴 Disabled"
+        
+        ads_btn = {
+            "uz": f"📢 Reklama: {ads_status}",
+            "ru": f"📢 Реклама: {ads_status_ru}",
+            "en": f"📢 Ads: {ads_status_en}"
+        }
+        
+        card_btn = {"uz": "💳 Karta raqami", "ru": "💳 Номер карты", "en": "💳 Card number"}
+        prices_btn = {"uz": "💰 Narxlar", "ru": "💰 Цены", "en": "💰 Prices"}
+        back_btn = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text=card_btn.get(lang, card_btn["uz"]), callback_data=f"bot_edit_card_{bot_id}"),
+                InlineKeyboardButton(text=prices_btn.get(lang, prices_btn["uz"]), callback_data=f"bot_edit_prices_{bot_id}")
+            ],
+            [
+                InlineKeyboardButton(text=ads_btn.get(lang, ads_btn["uz"]), callback_data=f"bot_toggle_ads_{bot_id}")
+            ],
+            [InlineKeyboardButton(text=back_btn.get(lang, back_btn["uz"]), callback_data=f"bot_manage_{bot_id}")]
+        ])
+        
+        await callback.message.edit_reply_markup(reply_markup=keyboard)
 
 
 @router.callback_query(F.data.startswith("bot_edit_card_"))

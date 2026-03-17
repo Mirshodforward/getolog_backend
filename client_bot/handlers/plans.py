@@ -54,12 +54,37 @@ def register_plan_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: in
                     await callback.answer("Kanal linkini yaratib bo'lmadi", show_alert=True)
                     return
 
+                # Fetch existing end date to stack 2 min
+                check_q = text("SELECT plan_start_date, plan_end_date FROM users WHERE user_id = :user_id AND bot_id = :bot_id")
+                res = await session.execute(check_q, {"user_id": user_id, "bot_id": bot_db_id})
+                u_row = res.fetchone()
+
+                import pytz
+                from client_bot.config import TIMEZONE
+                from datetime import datetime as dt
+                from datetime import timedelta
+                now = dt.now(TIMEZONE)
+
+                base_date = now
+                start_date = now
+                if u_row and u_row[1]:
+                    ex_end = u_row[1]
+                    if ex_end.tzinfo is None:
+                        ex_end = pytz.UTC.localize(ex_end)
+                    if ex_end > now:
+                        base_date = ex_end
+                        start_date = u_row[0] if u_row[0] else now
+
+                end_date = base_date + timedelta(minutes=2)
+
                 # Update user with test duration (per-bot)
                 update_user = text("""
                     UPDATE users
                     SET duration = :duration,
                         status = :status,
-                        invite_link = :invite_link
+                        invite_link = :invite_link,
+                        plan_start_date = :start_date,
+                        plan_end_date = :end_date
                     WHERE user_id = :user_id AND bot_id = :bot_id
                 """)
                 await session.execute(update_user, {
@@ -67,7 +92,9 @@ def register_plan_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: in
                     "status": "active",
                     "invite_link": invite_link,
                     "user_id": user_id,
-                    "bot_id": bot_db_id
+                    "bot_id": bot_db_id,
+                    "start_date": start_date,
+                    "end_date": end_date
                 })
                 await session.commit()
 
@@ -184,13 +211,48 @@ async def purchase_plan(callback: CallbackQuery, bot, owner_id: int, plan_type: 
                 await callback.answer("Kanal linkini yaratib bo'lmadi", show_alert=True)
                 return
 
+            # Fetch existing end date for stacking subscriptions
+            check_q = text("SELECT plan_start_date, plan_end_date FROM users WHERE user_id = :user_id AND bot_id = :bot_id")
+            res = await session.execute(check_q, {"user_id": user_id, "bot_id": bot_db_id})
+            usr_data = res.fetchone()
+
+            import pytz
+            from client_bot.config import TIMEZONE
+            from datetime import timedelta
+            from datetime import datetime as dt
+            
+            now = dt.now(TIMEZONE)
+            base_date = now
+            start_date = now
+            if usr_data and usr_data[1]:
+                ex_end = usr_data[1]
+                if ex_end.tzinfo is None:
+                    ex_end = pytz.UTC.localize(ex_end)
+                if ex_end > now:
+                    base_date = ex_end
+                    start_date = usr_data[0] if usr_data[0] else now
+
+            duration_str = config["duration"].lower()
+            if "2 daqiqa" in duration_str:
+                end_date = base_date + timedelta(minutes=2)
+            elif "oy" in duration_str or "oylik" in duration_str:
+                end_date = base_date + timedelta(days=30)
+            elif "yil" in duration_str or "yillik" in duration_str:
+                end_date = base_date + timedelta(days=365)
+            elif "cheksiz" in duration_str:
+                end_date = None
+            else:
+                end_date = base_date + timedelta(days=30)
+
             # Deduct from balance and update duration, invite_link (per-bot)
             update_balance = text("""
                 UPDATE users
                 SET balance = balance - :price,
                     duration = :duration,
                     status = :status,
-                    invite_link = :invite_link
+                    invite_link = :invite_link,
+                    plan_start_date = :start_date,
+                    plan_end_date = :end_date
                 WHERE user_id = :user_id AND bot_id = :bot_id
             """)
             await session.execute(update_balance, {
@@ -199,7 +261,9 @@ async def purchase_plan(callback: CallbackQuery, bot, owner_id: int, plan_type: 
                 "status": "active",
                 "invite_link": invite_link,
                 "user_id": user_id,
-                "bot_id": bot_db_id
+                "bot_id": bot_db_id,
+                "start_date": start_date,
+                "end_date": end_date
             })
 
             # Create transaction

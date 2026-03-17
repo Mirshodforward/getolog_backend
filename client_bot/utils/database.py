@@ -69,7 +69,7 @@ async def get_client_plan_and_ads(session, owner_id: int):
         switch_ads = client[2]
         
         # If standard/biznes but expired, treat as free and ads forced ON
-        if plan_type in ["standard", "biznes"] and plan_end_date:
+        if plan_type in ["standard", "standart", "biznes"] and plan_end_date:
             now_tz = datetime.datetime.now(datetime.timezone.utc)
             if plan_end_date.tzinfo is None:
                 plan_end_date = plan_end_date.replace(tzinfo=datetime.timezone.utc)
