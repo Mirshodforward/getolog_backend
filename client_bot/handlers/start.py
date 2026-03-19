@@ -323,10 +323,10 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
     admin_msg = f"{get_admin_text('admin_panel_title', lang)}\n\n"
 
     if bot_info:
-        admin_msg += f"{get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
-        admin_msg += f"{get_admin_text('channel_id_label', lang)} {bot_info.get('channel_id', 'N/A')}\n\n"
+        admin_msg += f"{get_admin_text('bot_label', lang)} @{bot_info.get('bot_username', 'N/A')}\n"
+       
 
-    admin_msg += f"{get_admin_text('short_stats', lang)}\n"
+    admin_msg += f"  {get_admin_text('short_stats', lang)}\n"
     admin_msg += f"  {get_admin_text('total_users_label', lang)}: {total_users}\n"
     admin_msg += f"  {get_admin_text('active_label', lang)}: {active_users}\n"
     admin_msg += f"  {get_admin_text('removed_label', lang)}: {removed_users}\n"
@@ -336,13 +336,14 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
     admin_keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=get_admin_text("btn_stats", lang), callback_data="admin_stats")],
         [
-            InlineKeyboardButton(text=get_admin_text("btn_users_excel", lang), callback_data="admin_users_excel"),
-            InlineKeyboardButton(text=get_admin_text("btn_payments_excel", lang), callback_data="admin_payments_excel")
-        ],
-        [
             InlineKeyboardButton(text=get_admin_text("btn_active_users", lang), callback_data="admin_active_users"),
             InlineKeyboardButton(text=get_admin_text("btn_removed_users", lang), callback_data="admin_removed_users")
         ]
+        [
+            InlineKeyboardButton(text=get_admin_text("btn_users_excel", lang), callback_data="admin_users_excel"),
+            InlineKeyboardButton(text=get_admin_text("btn_payments_excel", lang), callback_data="admin_payments_excel")
+        ],
+        
     ])
 
     await message.answer(admin_msg, parse_mode="HTML", reply_markup=admin_keyboard)
