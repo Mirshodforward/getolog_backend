@@ -81,15 +81,13 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
                 approved_result = await session.execute(approved_query, {"admin_id": owner_id})
                 approved_amount = float(approved_result.scalar() or 0)
 
-                # Get count and amount for rejected transactions
-                rejected_count_query = text("""
-                    SELECT COUNT(*), COALESCE(SUM(ABS(amount)), 0) FROM transactions
+                # Rejected amount
+                rejected_query = text("""
+                    SELECT COALESCE(SUM(amount), 0) FROM transactions
                     WHERE admin_id = :admin_id AND status = 'rejected'
                 """)
-                rejected_count_res = await session.execute(rejected_count_query, {"admin_id": owner_id})
-                rem_row = rejected_count_res.fetchone()
-                rejected_count = int(rem_row[0] if rem_row else 0)
-                rejected_amount = float(rem_row[1] if rem_row else 0)
+                rejected_result = await session.execute(rejected_query, {"admin_id": owner_id})
+                rejected_amount = float(rejected_result.scalar() or 0)
 
                 # Pending count
                 pending_query = text("""
@@ -141,7 +139,7 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
                 stats_msg += f"💰 {get_admin_text('financial_section', lang)}\n"
                 stats_msg += f"  💵 {get_admin_text('total_revenue', lang)}: {total_revenue:,.0f} {currency}\n"
                 stats_msg += f"  ✅ {get_admin_text('approved_amount', lang)}: {approved_amount:,.0f} {currency}\n"
-                stats_msg += f"  ❌ {get_admin_text('rejected_amount', lang)}: {rejected_count} ta ({rejected_amount:,.0f} {currency})\n"
+                stats_msg += f"  ❌ {get_admin_text('rejected_amount', lang)}: {rejected_amount:,.0f} {currency}\n"
                 stats_msg += f"  ⏳ {get_admin_text('pending_count', lang)}: {pending_count} {pcs}\n\n"
 
                 stats_msg += f"📋 {get_admin_text('subscription_section', lang)}\n"
