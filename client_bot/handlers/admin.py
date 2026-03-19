@@ -26,6 +26,11 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
     @dp.callback_query(F.data == "admin_stats")
     async def show_admin_stats(callback: CallbackQuery):
         """Show detailed statistics"""
+        try:
+            await callback.answer("⏳ Statistika yuklanmoqda...")
+        except:
+            pass
+            
         if callback.from_user.id != owner_id:
             await callback.answer(get_admin_text("no_permission", "uz"), show_alert=True)
             return
@@ -372,6 +377,11 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
     @dp.callback_query(F.data == "admin_active_users")
     async def show_active_users(callback: CallbackQuery):
         """Show last 10 active users"""
+        try:
+            await callback.answer("⏳ Faollar ro'yxati yuklanmoqda...")
+        except:
+            pass
+            
         if callback.from_user.id != owner_id:
             await callback.answer(get_admin_text("no_permission", "uz"), show_alert=True)
             return
