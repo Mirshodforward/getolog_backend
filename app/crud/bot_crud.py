@@ -156,15 +156,12 @@ async def set_bot_stop_flag_by_token(session: AsyncSession, bot_token: str, shou
 async def get_bots_to_start(session: AsyncSession):
     """
     Ishga tushirish kerak bo'lgan botlarni olish.
-    should_stop=False va (status='stopped' YOKI process_id=NULL) bo'lgan botlar.
+    should_stop=False va (status='stopped' yoki status='free') bo'lgan botlar.
     """
     from sqlalchemy import or_
     stmt = select(ClientBot).where(
         ClientBot.should_stop == False,
-        or_(
-            ClientBot.status.in_(["stopped", "free"]),
-            ClientBot.process_id.is_(None)
-        )
+        ClientBot.status.in_(["stopped", "free"])
     )
     result = await session.execute(stmt)
     return result.scalars().all()

@@ -14,25 +14,19 @@ from app.crud import update_bot_info
 from app.crud.bot_crud import check_bot_should_stop, reset_bot_stop_flag
 
 
-# Global flag to signal bot to stop
-_stop_event = asyncio.Event()
-_bot_token_global = None
-
-
-async def check_stop_signal():
+async def check_stop_signal(bot_token: str, stop_event: asyncio.Event):
     """
     Periodically check database for stop signal.
     This runs as a background task and signals the bot to stop gracefully.
     """
-    global _stop_event, _bot_token_global
     
-    while not _stop_event.is_set():
+    while not stop_event.is_set():
         try:
             async with AsyncSessionLocal() as session:
-                should_stop = await check_bot_should_stop(session, _bot_token_global)
+                should_stop = await check_bot_should_stop(session, bot_token)
                 if should_stop:
-                    logger.info("🛑 Stop signal received from admin panel!")
-                    _stop_event.set()
+                    logger.info(f"🛑 Stop signal received from admin panel for bot {bot_token[:10]}...!")
+                    stop_event.set()
                     break
         except Exception as e:
             logger.error(f"Error checking stop signal: {e}")
@@ -134,9 +128,7 @@ async def start_client_bot(bot_token: str, bot_username: str, owner_id: int):
         bot_username: Bot nomi
         owner_id: Bot egasining telegram ID (admin_id sifatida ishlatiladi)
     """
-    global _stop_event, _bot_token_global
-    _bot_token_global = bot_token
-    _stop_event.clear()
+    stop_event = asyncio.Event()
     
     try:
         logger.info(f"Client bot ishga tushurilmoqda...")
@@ -180,18 +172,21 @@ async def start_client_bot(bot_token: str, bot_username: str, owner_id: int):
 
         logger.info(f"Bot '{bot_username}' ready for polling...")
 
-        # Start scheduler
-        scheduler.start()
-        logger.info(f"Scheduler started for bot '{bot_username}'")
+        # Start scheduler natively if not already running
+        if not scheduler.running:
+            scheduler.start()
+            logger.info("Scheduler started")
+        else:
+            logger.info("Scheduler already running, reusing")
 
         # Start stop signal checker as background task
-        stop_checker_task = asyncio.create_task(check_stop_signal())
+        stop_checker_task = asyncio.create_task(check_stop_signal(bot_token, stop_event))
         logger.info("🔍 Stop signal checker started")
 
         # Custom polling loop with stop signal support
         async def custom_polling():
             """Custom polling that can be stopped gracefully and resumes on temporary errors"""
-            while not _stop_event.is_set():
+            while not stop_event.is_set():
                 try:
                     await dp.start_polling(
                         bot,
@@ -205,7 +200,7 @@ async def start_client_bot(bot_token: str, bot_username: str, owner_id: int):
                     break
                 except Exception as loop_e:
                     logger.error(f"Polling crashed: {loop_e}. Retrying in 5 seconds...", exc_info=True)
-                    if _stop_event.is_set():
+                    if stop_event.is_set():
                         break
                     await asyncio.sleep(5)
 
@@ -234,10 +229,8 @@ async def start_client_bot(bot_token: str, bot_username: str, owner_id: int):
         logger.error(f"Fatal error: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        # Cleanup
-        if 'scheduler' in dir() and scheduler.running:
-            scheduler.shutdown(wait=False)
-            logger.info("Scheduler stopped")
+        # Warning: do NOT shutdown the global scheduler here if in multi-bot mode
+        logger.info(f"Bot session cleanup for {bot_token[:10]}...")
         
         if 'bot' in locals():
             await bot.session.close()

@@ -750,12 +750,10 @@ async def bot_delete_confirm_callback(callback: CallbackQuery) -> None:
 
         try:
             # 1. Stop the bot if it's running
-            if bot.process_id:
-                try:
-                    os.kill(bot.process_id, signal.SIGTERM)
-                    logger.info(f"Bot process {bot.process_id} stopped for deletion")
-                except (OSError, ProcessLookupError):
-                    logger.warning(f"Bot process {bot.process_id} not found or already stopped")
+            if bot.status == "active":
+                from app.bot_manager import stop_bot_task
+                stop_bot_task(bot.bot_token)
+                logger.info(f"Bot task for {bot.bot_token[:10]} stopped for deletion")
 
             # 2. Get users count for this bot
             users_count = await get_bot_users_count(session, user_id)
@@ -1313,7 +1311,6 @@ async def back_to_main_callback(callback: CallbackQuery) -> None:
 @router.callback_query(BotCreationStates.confirming_terms, F.data == "confirm_terms")
 async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
     """Confirm and save bot, then launch it"""
-    import subprocess
     import sys
     import logging
     from pathlib import Path
@@ -1409,38 +1406,18 @@ async def confirm_terms(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text(starting_msgs.get(lang, starting_msgs["uz"]), parse_mode="HTML")
     project_root = Path(__file__).resolve().parent.parent.parent
     clients_bot_path = project_root / "client_bot_main.py"
-    python_exe = sys.executable
-    log_file = project_root / "clients_bots.log"
-
-    logger.info(f"🚀 Bot launch started: {clients_bot_path}")
+    
+    logger.info(f"🚀 Bot launch started: {data['bot_username']}")
     logger.info(f"📝 Token: {data['bot_token'][:20]}...")
     logger.info(f"🤖 Name: {data['bot_username']}")
     logger.info(f"👤 Owner ID: {user_id}")
 
-    # Write to log file
-    with open(log_file, "a", encoding="utf-8") as log:
-        log.write(f"\n{'='*60}\n")
-        log.write(f"Bot: {data['bot_username']} | Owner: {user_id}\n")
-        log.write(f"Time: {datetime.datetime.now()}\n")
-        log.write(f"{'='*60}\n")
-
-    # Open log file for subprocess output
-    log_handle = open(log_file, "a", encoding="utf-8")
-
-    # Launch subprocess (non-blocking)
-    process = subprocess.Popen(
-        [python_exe, str(clients_bot_path), data['bot_token'], data['bot_username'], str(user_id)],
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
-        text=True
+    from app.bot_manager import run_bot_in_background
+    await run_bot_in_background(
+        bot_token=data['bot_token'],
+        bot_username=data['bot_username'],
+        owner_id=user_id
     )
-    logger.info(f"✅ Client bot process ID: {process.pid}")
-
-    # Save process_id to database (outside of the first session to avoid conflicts)
-    async with AsyncSessionLocal() as session2:
-        await update_bot_process_id(session2, bot_id, process.pid)
-        logger.info(f"✅ Process ID {process.pid} saved to database")
 
     # Wait a bit for bot to start and retrieve metadata
     await asyncio.sleep(2)
@@ -1688,11 +1665,24 @@ async def manager_stop_bot(callback: CallbackQuery) -> None:
         await callback.answer("❌ Sizda bu amalni bajarish huquqi yo'q!", show_alert=True)
         return
 
+    bot_id = int(callback.data.split("_")[3])
+
+    async with AsyncSessionLocal() as session:
+        from app.crud.bot_crud import get_bot_by_id, set_bot_stop_flag
+        bot = await get_bot_by_id(session, bot_id)
+        if not bot:
+            await callback.answer("❌ Bot topilmadi!", show_alert=True)
+            return
+
         bot_username = bot.bot_username
 
         # Set should_stop = True (daemon will handle stopping)
         await set_bot_stop_flag(session, bot_id, True)
         logger.info(f"🛑 should_stop flag set for bot: {bot_username} (ID: {bot_id})")
+
+        # Shuningdek, xotiradagi taskni ham to'xtatamiz
+        from app.bot_manager import stop_bot_task
+        stop_bot_task(bot.bot_token)
 
         # Update message to show stopping
         await callback.message.edit_text(
