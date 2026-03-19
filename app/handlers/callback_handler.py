@@ -946,23 +946,10 @@ async def bot_edit_card_callback(callback: CallbackQuery, state: FSMContext) -> 
             await callback.answer(error_msg.get(lang, error_msg["uz"]), show_alert=True)
             return
 
-        # Stop bot by setting should_stop flag
-        await set_bot_stop_flag(session, bot_id, should_stop=True)
-
         current_card = bot.card_number or "----"
 
     # Save data in state
     await state.update_data(edit_bot_id=bot_id, lang=lang, edit_type="card")
-
-    stopping_msg = {
-        "uz": f"⏳ <b>{bot.bot_username}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
-        "ru": f"⏳ <b>{bot.bot_username}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
-        "en": f"⏳ <b>{bot.bot_username}</b> is stopping...\n\nBot is temporarily stopped for editing."
-    }
-    await callback.message.edit_text(stopping_msg.get(lang, stopping_msg["uz"]), parse_mode="HTML")
-
-    # Wait for bot to stop (bot checks every 5 seconds, so wait 7 seconds)
-    await asyncio.sleep(7)
 
     enter_card_msg = {
         "uz": f"💳 Yangi karta raqamini kiriting (16 raqam):\n\nJoriy karta: <code>{current_card}</code>",
@@ -996,9 +983,6 @@ async def bot_edit_prices_callback(callback: CallbackQuery, state: FSMContext) -
             await callback.answer(error_msg.get(lang, error_msg["uz"]), show_alert=True)
             return
 
-        # Stop bot by setting should_stop flag
-        await set_bot_stop_flag(session, bot_id, should_stop=True)
-
         current_oy = float(bot.oy_narx) if bot.oy_narx else 0
         current_yil = float(bot.yil_narx) if bot.yil_narx else 0
         current_cheksiz = float(bot.cheksiz_narx) if bot.cheksiz_narx else 0
@@ -1012,16 +996,6 @@ async def bot_edit_prices_callback(callback: CallbackQuery, state: FSMContext) -
         current_yil=current_yil,
         current_cheksiz=current_cheksiz
     )
-
-    stopping_msg = {
-        "uz": f"⏳ <b>{bot.bot_username}</b> to'xtatilmoqda...\n\nO'zgarishlar kiritish uchun bot vaqtincha to'xtatiladi.",
-        "ru": f"⏳ <b>{bot.bot_username}</b> останавливается...\n\nБот временно остановлен для внесения изменений.",
-        "en": f"⏳ <b>{bot.bot_username}</b> is stopping...\n\nBot is temporarily stopped for editing."
-    }
-    await callback.message.edit_text(stopping_msg.get(lang, stopping_msg["uz"]), parse_mode="HTML")
-
-    # Wait for bot to stop (bot checks every 5 seconds, so wait 7 seconds)
-    await asyncio.sleep(7)
 
     enter_oy_msg = {
         "uz": f"💰 Yangi <b>oylik</b> narxni kiriting (so'm):\n\nJoriy narx: <code>{current_oy:,.0f}</code> so'm",

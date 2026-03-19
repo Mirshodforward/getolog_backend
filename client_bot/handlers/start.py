@@ -323,7 +323,7 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
     admin_msg = f"{get_admin_text('admin_panel_title', lang)}\n\n"
 
     if bot_info:
-        admin_msg += f"{get_admin_text('bot_label', lang)} @{bot_info.get('bot_username', 'N/A')}\n"
+        admin_msg += f"{get_admin_text('bot_label', lang)} @{bot_info.get('bot_username', '--')}\n"
        
 
     admin_msg += f"  {get_admin_text('short_stats', lang)}\n"
