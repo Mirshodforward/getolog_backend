@@ -127,7 +127,7 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
                 stats_msg = f"📊 {get_admin_text('stats_title', lang)}\n\n"
 
                 if bot_info:
-                    stats_msg += f"🤖 @{get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
+                    stats_msg += f"🤖 {get_admin_text('bot_label', lang)} @{bot_info.get('bot_username', 'N/A')}\n"
                     
 
                 stats_msg += f"👥 {get_admin_text('users_section', lang)}\n"
@@ -533,7 +533,7 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
         admin_msg = f"👨‍💼 {get_admin_text('admin_panel_title', lang)}\n\n"
 
         if bot_info:
-            admin_msg += f"🤖 @{get_admin_text('bot_label', lang)} {bot_info.get('bot_username', 'N/A')}\n"
+            admin_msg += f"🤖 {get_admin_text('bot_label', lang)} @{bot_info.get('bot_username', 'N/A')}\n"
            
 
         admin_msg += f"📊 {get_admin_text('short_stats', lang)}\n"
@@ -545,15 +545,14 @@ def register_admin_handlers(dp, bot, owner_id: int, bot_token: str, bot_db_id: i
         # Admin keyboard with translations
         admin_keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=f"📊 {get_admin_text('btn_stats', lang)}", callback_data="admin_stats")],
-             [
+            [
                 InlineKeyboardButton(text=f"✅ {get_admin_text('btn_active_users', lang)}", callback_data="admin_active_users"),
                 InlineKeyboardButton(text=f"❌ {get_admin_text('btn_removed_users', lang)}", callback_data="admin_removed_users")
-            ]
+            ],
             [
                 InlineKeyboardButton(text=f"📥 {get_admin_text('btn_users_excel', lang)}", callback_data="admin_users_excel"),
                 InlineKeyboardButton(text=f"📥 {get_admin_text('btn_payments_excel', lang)}", callback_data="admin_payments_excel")
-            ],
-           
+            ]
         ])
 
         await callback.message.edit_text(admin_msg, parse_mode="HTML", reply_markup=admin_keyboard)
