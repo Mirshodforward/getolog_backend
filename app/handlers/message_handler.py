@@ -435,9 +435,9 @@ async def process_edit_card(message: Message, state: FSMContext) -> None:
 
     # Show confirmation screen
     confirm_msg = {
-        "uz": f"✅ <b>O'zgarishlar</b>\n\n💳 Yangi karta: <code>{card}</code>\n\n🔄 Botni qayta ishga tushirish uchun <b>Tasdiqlash</b> tugmasini bosing.",
-        "ru": f"✅ <b>Изменения</b>\n\n💳 Новая карта: <code>{card}</code>\n\n🔄 Нажмите <b>Подтвердить</b> для перезапуска бота.",
-        "en": f"✅ <b>Changes</b>\n\n💳 New card: <code>{card}</code>\n\n🔄 Press <b>Confirm</b> to restart the bot."
+        "uz": f"✅ <b>O'zgarishlar</b>\n\n💳 Yangi karta: <code>{card}</code>\n\n🔄 O'zgarishlarni saqlash uchun <b>Tasdiqlash</b> tugmasini bosing.",
+        "ru": f"✅ <b>Изменения</b>\n\n💳 Новая карта: <code>{card}</code>\n\n🔄 Нажмите <b>Подтвердить</b> для сохранения изменений.",
+        "en": f"✅ <b>Changes</b>\n\n💳 New card: <code>{card}</code>\n\n🔄 Press <b>Confirm</b> to save changes."
     }
 
     confirm_btn = {"uz": "✅ Tasdiqlash", "ru": "✅ Подтвердить", "en": "✅ Confirm"}
@@ -556,9 +556,9 @@ async def process_edit_cheksiz_narx(message: Message, state: FSMContext) -> None
     cheksiz_display = f"{cheksiz_narx:,.0f}"
 
     confirm_msg = {
-        "uz": f"✅ <b>O'zgarishlar</b>\n\n💰 Oylik: {oy_display} {currency}\n💰 Yillik: {yil_display} {currency}\n💰 Cheksiz: {cheksiz_display} {currency}\n\n🔄 Botni qayta ishga tushirish uchun <b>Tasdiqlash</b> tugmasini bosing.",
-        "ru": f"✅ <b>Изменения</b>\n\n💰 Месяц: {oy_display} {currency}\n💰 Год: {yil_display} {currency}\n💰 Безлимит: {cheksiz_display} {currency}\n\n🔄 Нажмите <b>Подтвердить</b> для перезапуска бота.",
-        "en": f"✅ <b>Changes</b>\n\n💰 Monthly: {oy_display} {currency}\n💰 Yearly: {yil_display} {currency}\n💰 Unlimited: {cheksiz_display} {currency}\n\n🔄 Press <b>Confirm</b> to restart the bot."
+        "uz": f"✅ <b>O'zgarishlar</b>\n\n💰 Oylik: {oy_display} {currency}\n💰 Yillik: {yil_display} {currency}\n💰 Cheksiz: {cheksiz_display} {currency}\n\n🔄 O'zgarishlarni saqlash uchun <b>Tasdiqlash</b> tugmasini bosing.",
+        "ru": f"✅ <b>Изменения</b>\n\n💰 Месяц: {oy_display} {currency}\n💰 Год: {yil_display} {currency}\n💰 Безлимит: {cheksiz_display} {currency}\n\n🔄 Нажмите <b>Подтвердить</b> для сохранения изменений.",
+        "en": f"✅ <b>Changes</b>\n\n💰 Monthly: {oy_display} {currency}\n💰 Yearly: {yil_display} {currency}\n💰 Unlimited: {cheksiz_display} {currency}\n\n🔄 Press <b>Confirm</b> to save changes."
     }
 
     confirm_btn = {"uz": "✅ Tasdiqlash", "ru": "✅ Подтвердить", "en": "✅ Confirm"}

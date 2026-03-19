@@ -800,7 +800,7 @@ async def bot_delete_cancel_callback(callback: CallbackQuery) -> None:
     await bot_manage_callback(callback)
 
 
-@router.callback_query(F.data.startswith("bot_edit_") & ~F.data.startswith("bot_edit_card_") & ~F.data.startswith("bot_edit_prices_") & ~F.data.startswith("bot_edit_confirm_") & ~F.data.startswith("bot_edit_cancel_"))
+@router.callback_query(F.data.startswith("bot_edit_") & ~F.data.startswith("bot_edit_card_") & ~F.data.startswith("bot_edit_prices_") & ~F.data.startswith("bot_edit_confirm_") & ~F.data.startswith("bot_edit_cancel_") & ~F.data.startswith("bot_edit_skip_"))
 async def bot_edit_callback(callback: CallbackQuery, state: FSMContext) -> None:
     """Bot edit callback - show edit options (card or prices)"""
     bot_id = int(callback.data.split("_")[2])
@@ -1089,7 +1089,7 @@ async def bot_edit_skip_cheksiz_callback(callback: CallbackQuery, state: FSMCont
 
 @router.callback_query(F.data.startswith("bot_edit_cancel_"))
 async def bot_edit_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    """Cancel editing - restart bot without changes"""
+    """Cancel editing"""
     bot_id = int(callback.data.split("_")[3])
     user_id = callback.from_user.id
 
@@ -1097,17 +1097,12 @@ async def bot_edit_cancel_callback(callback: CallbackQuery, state: FSMContext) -
         client = await get_client_by_user_id(session, user_id)
         lang = client.language if client else "uz"
 
-        bot = await get_bot_by_id(session, bot_id)
-        if bot:
-            # Reset stop flag to restart bot
-            await set_bot_stop_flag(session, bot_id, should_stop=False)
-
     await state.clear()
 
     cancel_msg = {
-        "uz": "❌ Tahrirlash bekor qilindi.\n\nBot qayta ishga tushirildi.",
-        "ru": "❌ Редактирование отменено.\n\nБот перезапущен.",
-        "en": "❌ Edit cancelled.\n\nBot restarted."
+        "uz": "❌ Tahrirlash bekor qilindi.",
+        "ru": "❌ Редактирование отменено.",
+        "en": "❌ Edit cancelled."
     }
 
     back_btn = {"uz": "⬅️ Orqaga", "ru": "⬅️ Назад", "en": "⬅️ Back"}
@@ -1155,25 +1150,12 @@ async def bot_edit_confirm_callback(callback: CallbackQuery, state: FSMContext) 
                 cheksiz_narx=new_cheksiz
             )
 
-        # Reset stop flag to restart bot
-        await set_bot_stop_flag(session, bot_id, should_stop=False)
-
     await state.clear()
 
-    restarting_msg = {
-        "uz": "⏳ Bot qayta ishga tushirilmoqda...",
-        "ru": "⏳ Бот перезапускается...",
-        "en": "⏳ Bot is restarting..."
-    }
-    await callback.message.edit_text(restarting_msg.get(lang, restarting_msg["uz"]))
-
-    # Wait for bot to restart
-    await asyncio.sleep(2)
-
     success_msg = {
-        "uz": "✅ O'zgarishlar saqlandi va bot muvaffaqiyatli qayta ishga tushirildi!",
-        "ru": "✅ Изменения сохранены и бот успешно перезапущен!",
-        "en": "✅ Changes saved and bot restarted successfully!"
+        "uz": "✅ O'zgarishlar muvaffaqiyatli saqlandi!",
+        "ru": "✅ Изменения успешно сохранены!",
+        "en": "✅ Changes saved successfully!"
     }
 
     back_btn = {"uz": "⬅️ Botga qaytish", "ru": "⬅️ К боту", "en": "⬅️ Back to bot"}
@@ -1195,9 +1177,9 @@ async def show_edit_confirmation(callback: CallbackQuery, state: FSMContext) -> 
     if edit_type == "card":
         new_card = data.get("new_card", "----")
         confirm_msg = {
-            "uz": f"✅ <b>O'zgarishlar</b>\n\n💳 Yangi karta: <code>{new_card}</code>\n\n🔄 Botni qayta ishga tushirish uchun <b>Tasdiqlash</b> tugmasini bosing.",
-            "ru": f"✅ <b>Изменения</b>\n\n💳 Новая карта: <code>{new_card}</code>\n\n🔄 Нажмите <b>Подтвердить</b> для перезапуска бота.",
-            "en": f"✅ <b>Changes</b>\n\n💳 New card: <code>{new_card}</code>\n\n🔄 Press <b>Confirm</b> to restart the bot."
+            "uz": f"✅ <b>O'zgarishlar</b>\n\n💳 Yangi karta: <code>{new_card}</code>\n\n🔄 O'zgarishlarni saqlash uchun <b>Tasdiqlash</b> tugmasini bosing.",
+            "ru": f"✅ <b>Изменения</b>\n\n💳 Новая карта: <code>{new_card}</code>\n\n🔄 Нажмите <b>Подтвердить</b> для сохранения изменений.",
+            "en": f"✅ <b>Changes</b>\n\n💳 New card: <code>{new_card}</code>\n\n🔄 Press <b>Confirm</b> to save changes."
         }
     else:
         # Prices
@@ -1215,9 +1197,9 @@ async def show_edit_confirmation(callback: CallbackQuery, state: FSMContext) -> 
         currency = "so'm" if lang == "uz" else "сум" if lang == "ru" else "UZS"
 
         confirm_msg = {
-            "uz": f"✅ <b>O'zgarishlar</b>\n\n💰 Oylik: {oy_display} {currency}\n💰 Yillik: {yil_display} {currency}\n💰 Cheksiz: {cheksiz_display} {currency}\n\n🔄 Botni qayta ishga tushirish uchun <b>Tasdiqlash</b> tugmasini bosing.",
-            "ru": f"✅ <b>Изменения</b>\n\n💰 Месяц: {oy_display} {currency}\n💰 Год: {yil_display} {currency}\n💰 Безлимит: {cheksiz_display} {currency}\n\n🔄 Нажмите <b>Подтвердить</b> для перезапуска бота.",
-            "en": f"✅ <b>Changes</b>\n\n💰 Monthly: {oy_display} {currency}\n💰 Yearly: {yil_display} {currency}\n💰 Unlimited: {cheksiz_display} {currency}\n\n🔄 Press <b>Confirm</b> to restart the bot."
+            "uz": f"✅ <b>O'zgarishlar</b>\n\n💰 Oylik: {oy_display} {currency}\n💰 Yillik: {yil_display} {currency}\n💰 Cheksiz: {cheksiz_display} {currency}\n\n🔄 O'zgarishlarni saqlash uchun <b>Tasdiqlash</b> tugmasini bosing.",
+            "ru": f"✅ <b>Изменения</b>\n\n💰 Месяц: {oy_display} {currency}\n💰 Год: {yil_display} {currency}\n💰 Безлимит: {cheksiz_display} {currency}\n\n🔄 Нажмите <b>Подтвердить</b> для сохранения изменений.",
+            "en": f"✅ <b>Changes</b>\n\n💰 Monthly: {oy_display} {currency}\n💰 Yearly: {yil_display} {currency}\n💰 Unlimited: {cheksiz_display} {currency}\n\n🔄 Press <b>Confirm</b> to save changes."
         }
 
     confirm_btn = {"uz": "✅ Tasdiqlash", "ru": "✅ Подтвердить", "en": "✅ Confirm"}
