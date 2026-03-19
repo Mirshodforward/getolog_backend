@@ -426,18 +426,9 @@ router.delete('/:botId', async (req, res) => {
 
     const bot = botResult.rows[0];
 
-    // Kill the process if running
-    if (bot.process_id) {
-      try {
-        exec(`taskkill /F /PID ${bot.process_id}`, (error) => {
-          if (error) {
-            console.log(`Process ${bot.process_id} may already be stopped`);
-          }
-        });
-      } catch (killError) {
-        console.error('Error killing process:', killError);
-      }
-    }
+    // Bot is now stopped via database flag logic (Python daemon will clear it up)
+    // Just update the UI or stop via flag
+    await query('UPDATE client_bots SET should_stop = true WHERE id = $1', [botId]);
 
     // Delete from database
     await query('DELETE FROM client_bots WHERE id = $1', [botId]);
