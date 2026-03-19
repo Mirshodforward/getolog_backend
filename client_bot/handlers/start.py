@@ -338,7 +338,7 @@ async def show_admin_panel(message: Message, owner_id: int, bot_token: str, bot_
         [
             InlineKeyboardButton(text=get_admin_text("btn_active_users", lang), callback_data="admin_active_users"),
             InlineKeyboardButton(text=get_admin_text("btn_removed_users", lang), callback_data="admin_removed_users")
-        ]
+        ],
         [
             InlineKeyboardButton(text=get_admin_text("btn_users_excel", lang), callback_data="admin_users_excel"),
             InlineKeyboardButton(text=get_admin_text("btn_payments_excel", lang), callback_data="admin_payments_excel")
